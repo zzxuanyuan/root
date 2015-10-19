@@ -391,6 +391,12 @@ public:
 
 static void SigHandler(ESignals sig)
 {
+#ifdef ROOTETCDIR
+      fprintf(stdout, "SigHandler:%s/gdb-backtrace.sh", ROOTETCDIR);
+#else
+      fprintf(stdout, "SigHandler:%s/etc/gdb-backtrace.sh", gSystem->Getenv("ROOTSYS"));
+#endif
+
    if (gSystem)
       ((TUnixSystem*)gSystem)->DispatchSignals(sig);
 }
@@ -571,8 +577,21 @@ TUnixSystem::~TUnixSystem()
 
 Bool_t TUnixSystem::Init()
 {
+#ifdef ROOTETCDIR
+      fprintf(stdout, "Init:%s/gdb-backtrace.sh", ROOTETCDIR);
+#else
+      fprintf(stdout, "Init:%s/etc/gdb-backtrace.sh", gSystem->Getenv("ROOTSYS"));
+#endif
+
    if (TSystem::Init())
       return kTRUE;
+
+#ifdef ROOTETCDIR
+      fprintf(stdout, "Init2:%s/gdb-backtrace.sh", ROOTETCDIR);
+#else
+      fprintf(stdout, "Init2:%s/etc/gdb-backtrace.sh", gSystem->Getenv("ROOTSYS"));
+#endif
+
 
    fReadmask   = new TFdSet;
    fWritemask  = new TFdSet;
@@ -2129,6 +2148,12 @@ void TUnixSystem::Abort(int)
 
 void TUnixSystem::StackTrace()
 {
+#ifdef ROOTETCDIR
+      fprintf(stdout, "%s/gdb-backtrace.sh", ROOTETCDIR);
+#else
+      fprintf(stdout, "%s/etc/gdb-backtrace.sh", Getenv("ROOTSYS"));
+#endif
+
    if (!gEnv->GetValue("Root.Stacktrace", 1))
       return;
 
@@ -3524,6 +3549,12 @@ static void sighandler(int sig)
 
 void TUnixSystem::DispatchSignals(ESignals sig)
 {
+#ifdef ROOTETCDIR
+      fprintf(stdout, "DispatchSignals:%s/gdb-backtrace.sh", ROOTETCDIR);
+#else
+      fprintf(stdout, "DispatchSignals:%s/etc/gdb-backtrace.sh", Getenv("ROOTSYS"));
+#endif
+
    switch (sig) {
    case kSigAlarm:
       DispatchTimers(kFALSE);
