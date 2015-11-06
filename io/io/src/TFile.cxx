@@ -1463,8 +1463,11 @@ void TFile::Map()
    char classname[512];
 
    while (idcur < fEND) {
+      Printf("idcur=%lld\t!!!!\nfBEGIN=%lld\t!!!!\n", idcur, fBEGIN);	//##
       Seek(idcur);
+      Printf("idcur+nread>=fEND where idcur=%lld, nread=%d, fEND=%lld\t!!!\n", idcur, nread, fEND);	//##
       if (idcur+nread >= fEND) nread = fEND-idcur-1;
+      Printf("kBEGIN=%d\t!!!\nReadBuffer(header, %d)\t!!!!\n", kBEGIN, nread);	//##
       if (ReadBuffer(header, nread)) {
          // ReadBuffer returns kTRUE in case of failure.
          Warning("Map","%s: failed to read the key data from disk at %lld.",
@@ -1474,6 +1477,7 @@ void TFile::Map()
 
       buffer=header;
       frombuf(buffer, &nbytes);
+      Printf("frombuf(buffer,&nbytes), where nbytes=%d\t!!!!\n", nbytes);	//##
       if (!nbytes) {
          Printf("Address = %lld\tNbytes = %d\t=====E R R O R=======", idcur, nbytes);
          date = 0; time = 0;
@@ -1487,17 +1491,24 @@ void TFile::Map()
       }
       Version_t versionkey;
       frombuf(buffer, &versionkey);
+      Printf("frombuf(buffer,&versionkey), where versionkey=%d\t!!!!\n", versionkey);	//##
       frombuf(buffer, &objlen);
+      Printf("frombuf(buffer,&objlen), where objlen=%d\t!!!!\n", objlen);	//##
       frombuf(buffer, &datime);
+      Printf("frombuf(buffer,&datime), where datime=%u\t!!!!\n", datime);	//##
       frombuf(buffer, &keylen);
+      Printf("frombuf(buffer,&keylen), where keylen=%hd\t!!!!\n", keylen);	//##
       frombuf(buffer, &cycle);
+      Printf("frombuf(buffer,&cycle), where cycle=%hd\t!!!!\n", cycle);	//##
       if (versionkey > 1000) {
          frombuf(buffer, &seekkey);
          frombuf(buffer, &seekpdir);
+         Printf("frombuf(buffer,&seekkey/&seekpdir with versionkey>1000), where seekkey=%lld/seekpdir=%lld\t!!!!\n", seekkey, seekpdir);	//##
       } else {
          Int_t skey,sdir;
          frombuf(buffer, &skey);  seekkey  = (Long64_t)skey;
          frombuf(buffer, &sdir);  seekpdir = (Long64_t)sdir;
+         Printf("frombuf(buffer,&seekkey/&seekpdir with versionkey<=1000), where seekkey=%lld/seekpdir=%lld\t!!!!\n", seekkey, seekpdir);	//##
       }
       frombuf(buffer, &nwhc);
       for (int i = 0;i < nwhc; i++) frombuf(buffer, &classname[i]);
