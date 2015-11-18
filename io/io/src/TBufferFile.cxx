@@ -356,7 +356,9 @@ void TBufferFile::SetByteCount(UInt_t cntpos, Bool_t packInVersion)
          Version_t vers[2];
       } v;
       v.cnt = cnt;
+      printf("cnt is %d, version[1]=%hd, version[0]=%hd\n", v.cnt, v.vers[1], v.vers[0]);
 #ifdef R__BYTESWAP
+      printf("cnt is %d, version[1]=%hd, version[0]=%hd\n", v.cnt, v.vers[1], v.vers[0]);
       tobuf(buf, Version_t(v.vers[1] | kByteCountVMask));
       tobuf(buf, v.vers[0]);
 #else
