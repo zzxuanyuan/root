@@ -1766,10 +1766,25 @@ void TFile::ReadFree()
       return;
    }
    TKey *headerfree = new TKey(fSeekFree, fNbytesFree, this);
+   printf("1.GetKeyLen=%d\n", headerfree->GetKeylen());
+   printf("1.GetNbytes=%d\n", headerfree->GetNbytes());
+   printf("1.GetObjlen=%d\n", headerfree->GetObjlen());
    headerfree->ReadFile();
+   printf("2.GetKeyLen=%d\n", headerfree->GetKeylen());
+   printf("2.GetNbytes=%d\n", headerfree->GetNbytes());
+   printf("2.GetObjlen=%d\n", headerfree->GetObjlen());
    char *buffer = headerfree->GetBuffer();
+   printf("buffer[1][2][3]=%c,%c,%c\n",buffer[1],buffer[2],buffer[3]);
    headerfree->ReadKeyBuffer(buffer);
+   printf("3.GetKeyLen=%d\n", headerfree->GetKeylen());
+   printf("3.GetNbytes=%d\n", headerfree->GetNbytes());
+   printf("3.GetObjlen=%d\n", headerfree->GetObjlen());
+   printf("buffer[1][2][3]=%c,%c,%c\n",buffer[1],buffer[2],buffer[3]);
    buffer = headerfree->GetBuffer();
+   printf("4.GetKeyLen=%d\n", headerfree->GetKeylen());
+   printf("4.GetNbytes=%d\n", headerfree->GetNbytes());
+   printf("4.GetObjlen=%d\n", headerfree->GetObjlen());
+   printf("buffer[1][2][3]=%c,%c,%c\n",buffer[1],buffer[2],buffer[3]);
    while (1) {
       TFree *afree = new TFree();
       afree->ReadBuffer(buffer);

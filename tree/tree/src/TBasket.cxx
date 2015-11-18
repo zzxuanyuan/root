@@ -415,6 +415,7 @@ void inline TBasket::InitializeCompressedBuffer(Int_t len, TFile* file)
    if (R__unlikely(!compressedBufferExists)) {
       fOwnsCompressedBuffer = kTRUE;
    }
+   printf("InitializeCompressedBuffer: len=%d\n",len);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -515,7 +516,7 @@ Int_t TBasket::ReadBasketBuffers(Long64_t pos, Int_t len, TFile *file)
    }
 
    rawCompressedBuffer = readBufferRef->Buffer();
-
+   printf("In ReadBasketBuffers()\n");
    // Are we done?
    if (R__unlikely(readBufferRef == fBufferRef)) // We expect most basket to be compressed.
    {
@@ -969,7 +970,7 @@ Int_t TBasket::WriteBuffer()
    Int_t lbuf, nout, noutot, bufmax, nzip;
    lbuf       = fBufferRef->Length();
    fObjlen    = lbuf - fKeylen;
-
+   printf("In WriteBuffer()\n");
    fHeaderOnly = kTRUE;
    fCycle = fBranch->GetWriteBasket();
    Int_t cxlevel = fBranch->GetCompressionLevel();

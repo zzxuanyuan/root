@@ -1203,6 +1203,7 @@ Int_t TBranch::GetEntry(Long64_t entry, Int_t getall)
    Bool_t enabled = !TestBit(kDoNotProcess) || getall;
    TBasket *basket; // will be initialized in the if/then clauses.
    Long64_t first;
+   printf("fReadEntry=%lld, fFirstBasketEntry=%lld, fNextBasketEntry=%lld\n", fReadEntry, fFirstBasketEntry, fNextBasketEntry);
    if (R__likely(enabled && fFirstBasketEntry <= entry && entry < fNextBasketEntry)) {
       // We have found the basket containing this entry.
       // make sure basket buffers are in memory.
@@ -1276,7 +1277,7 @@ Int_t TBranch::GetEntry(Long64_t entry, Int_t getall)
       bufbegin = basket->GetKeylen() + ((entry-first) * basket->GetNevBufSize());
       buf->SetBufferOffset(bufbegin);
    }
-
+   printf("get into fReadLeaves\n");
    // Int_t bufbegin = buf->Length();
    (this->*fReadLeaves)(*buf);
    return buf->Length() - bufbegin;
@@ -1829,6 +1830,7 @@ void TBranch::ReadLeavesImpl(TBuffer& b)
    for (Int_t i = 0; i < fNleaves; ++i) {
       TLeaf* leaf = (TLeaf*) fLeaves.UncheckedAt(i);
       leaf->ReadBasket(b);
+      printf("Leaf->GetValue() is %f, Leaf->GetLen() is %d\n", leaf->GetValue(), leaf->GetLen());
    }
 }
 

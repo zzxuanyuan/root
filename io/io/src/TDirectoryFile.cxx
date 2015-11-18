@@ -1790,7 +1790,7 @@ Int_t TDirectoryFile::Write(const char *n, Int_t opt, Int_t bufsize) const
 Int_t TDirectoryFile::WriteTObject(const TObject *obj, const char *name, Option_t *option, Int_t bufsize)
 {
    TDirectory::TContext ctxt(this);
-
+   printf("In TDirectoryFile::WriteTObject function!\n");
    if (fFile==0) {
       const char *objname = "no name specified";
       if (name) objname = name;

@@ -2979,7 +2979,9 @@ TTree* TTree::CloneTree(Long64_t nentries /* = -1 */, Option_t* option /* = "" *
 
    // Note: For a chain, the returned clone will be
    //       a clone of the chain's first tree.
+   printf("in clonetree, before thistree->Clone()\n");
    TTree* newtree = (TTree*) thistree->Clone();
+   printf("in clonetree, after thistree->Clone()\n");
    if (!newtree) {
       return 0;
    }
@@ -3088,7 +3090,7 @@ TTree* TTree::CloneTree(Long64_t nentries /* = -1 */, Option_t* option /* = "" *
    //
    // Copy entries if requested.
    //
-
+   printf("in clonetree, before loop copy entries\n");
    if (nentries != 0) {
       if (fastClone && (nentries < 0)) {
          if ( newtree->CopyEntries( this, -1, option ) < 0 ) {
@@ -3102,7 +3104,7 @@ TTree* TTree::CloneTree(Long64_t nentries /* = -1 */, Option_t* option /* = "" *
          newtree->CopyEntries( this, nentries, option );
       }
    }
-
+   printf("in clonetree, after loop copy entries\n");
    return newtree;
 }
 
@@ -4325,7 +4327,9 @@ Int_t TTree::Fill()
       if (branch->TestBit(kDoNotProcess)) {
          continue;
       }
+      printf("before branch->Fill() function\n");
       Int_t nwrite = branch->Fill();
+      printf("In TTree::Fill(), branch->Fill() returned nwrite=%d\n", nwrite);
       if (nwrite < 0)  {
          if (nerror < 2) {
             Error("Fill", "Failed filling branch:%s.%s, nbytes=%d, entry=%lld\n"
@@ -4346,6 +4350,7 @@ Int_t TTree::Fill()
       }
    }
    if (fBranchRef) {
+      printf("running into fBranchRef->Fill()\n");
       fBranchRef->Fill();
    }
    ++fEntries;
@@ -4353,6 +4358,9 @@ Int_t TTree::Fill()
       KeepCircular();
    }
    if (gDebug > 0) printf("TTree::Fill - A:  %d %lld %lld %lld %lld %lld %lld \n",
+       nbytes, fEntries, fAutoFlush,fAutoSave,fZipBytes,fFlushedBytes,fSavedBytes);
+
+   printf("TTree::Fill - A:  %d %lld %lld %lld %lld %lld %lld \n",
        nbytes, fEntries, fAutoFlush,fAutoSave,fZipBytes,fFlushedBytes,fSavedBytes);
 
    if (fAutoFlush != 0 || fAutoSave != 0) {

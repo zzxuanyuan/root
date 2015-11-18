@@ -260,6 +260,7 @@ Int_t TBranchClones::Fill()
 
 Int_t TBranchClones::GetEntry(Long64_t entry, Int_t getall)
 {
+   printf("TBranchClones::GetEntry\n");
    if (TestBit(kDoNotProcess) && !getall) {
       return 0;
    }
