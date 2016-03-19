@@ -3753,8 +3753,7 @@ void TUnixSystem::DispatchSignals(ESignals sig)
 
       SignalSafeErrWrite("\n\nA fatal system signal has occurred: ");
       SignalSafeErrWrite(signalname);
-      SignalSafeErrWrite("\nThe following is the call stack containing the origin of the signal.\n"
-        "NOTE:The first few functions on the stack are artifacts of processing the signal and can be ignored\n\n");
+      SignalSafeErrWrite("\nThe following is the call stack containing the origin of the signal.\n\n");
 
       TUnixSystem::StackTraceFromThread();
 
@@ -5408,9 +5407,13 @@ void TUnixSystem::StackTraceFromThread()
       return;
     }
     char buf[2]; buf[1] = '\0';
-    if ((result = SignalSafeRead(fStackTraceHelper.fChildToParent[0], buf, 1)) < 0) {
+    if ((result = SignalSafeRead(fStackTraceHelper.fChildToParent[0], buf, 1, 5*60)) < 0) {
        SignalSafeErrWrite("\n\nWaiting for stacktrace completion failed: ");
-       SignalSafeErrWrite(strerror(-result));
+       if (result == -ETIMEDOUT) {
+          SignalSafeErrWrite("Timed out waiting for GDB to complete.");
+       } else {
+          SignalSafeErrWrite(strerror(-result));
+       }
        SignalSafeErrWrite("\n");
        return;
     }
@@ -5435,6 +5438,9 @@ void StackTraceFork()
       int status;
       if (waitpid(pid, &status, 0) == -1) {
          SignalSafeErrWrite("(Failed to wait on stack dump output.)\n");
+         if (status) {
+            SignalSafeErrWrite("(GDB stack trace failed unexpectedly)\n");
+         }
       } else {}
    }
 }
