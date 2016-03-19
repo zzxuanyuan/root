@@ -15,6 +15,7 @@
 #include "TEfficiency.h"
 #include "TROOT.h"
 #include "TGraphAsymmErrors.h"
+#include "TGraphErrors.h"
 #include "TStyle.h"
 #include "TMath.h"
 #include "TArrow.h"
@@ -25,6 +26,7 @@
 #include "TVector.h"
 #include "TVectorD.h"
 #include "TClass.h"
+#include "TSystem.h"
 #include "Math/QuantFuncMathCore.h"
 
 ClassImp(TGraphAsymmErrors)
@@ -278,6 +280,154 @@ TGraphAsymmErrors::TGraphAsymmErrors(const TH1* pass, const TH1* total, Option_t
 
 
 ////////////////////////////////////////////////////////////////////////////////
+/// GraphAsymErrors constructor reading input from filename
+/// filename is assumed to contain at least 2 columns of numbers
+///
+/// convention for format (default="%lg %lg %lg %lg %lg %lg)
+///  format = "%lg %lg"         read only 2 first columns into X, Y
+///  format = "%lg %lg %lg %lg"     read only 4 first columns into X, Y,  ELY, EHY
+///  format = "%lg %lg %lg %lg %lg %lg" read only 6 first columns into X, Y, EXL, EYH, EYL, EHY
+///
+/// For files separated by a specific delimiter different from ' ' and '\t' (e.g. ';' in csv files)
+/// you can avoid using %*s to bypass this delimiter by explicitly specify the "option" argument,
+/// e.g. option=" \t,;" for columns of figures separated by any of these characters (' ', '\t', ',', ';')
+/// used once (e.g. "1;1") or in a combined way (" 1;,;;  1").
+/// Note in that case, the instantiation is about 2 times slower.
+/// In case a delimiter is specified, the format "%lg %lg %lg" will read X,Y,EX.
+
+TGraphAsymmErrors::TGraphAsymmErrors(const char *filename, const char *format, Option_t *option)
+   : TGraph(100)
+{
+   if (!CtorAllocate()) return;
+   Double_t x, y, exl, exh, eyl, eyh;
+   TString fname = filename;
+   gSystem->ExpandPathName(fname);
+   std::ifstream infile(fname.Data());
+   if (!infile.good()) {
+      MakeZombie();
+      Error("TGraphErrors", "Cannot open file: %s, TGraphErrors is Zombie", filename);
+      fNpoints = 0;
+      return;
+   }
+   std::string line;
+   Int_t np = 0;
+
+   if (strcmp(option, "") == 0) { // No delimiters specified (standard constructor).
+
+      Int_t ncol = TGraphErrors::CalculateScanfFields(format);  //count number of columns in format
+      Int_t res;
+      while (std::getline(infile, line, '\n')) {
+         exl = exh = eyl = eyh = 0;
+         if (ncol < 3) {
+            res = sscanf(line.c_str(), format, &x, &y);
+         } else if (ncol < 5) {
+            res = sscanf(line.c_str(), format, &x, &y, &eyl, &eyh);
+         } else {
+            res = sscanf(line.c_str(), format, &x, &y, &exl, &exh, &eyl, &eyh);
+         }
+         if (res < 2) {
+            continue; //skip empty and ill-formed lines
+         }
+         SetPoint(np, x, y);
+         SetPointError(np, exl, exh, eyl, eyh);
+         np++;
+      }
+      Set(np);
+
+   } else { // A delimiter has been specified in "option"
+
+      // Checking format and creating its boolean equivalent
+      TString format_ = TString(format) ;
+      format_.ReplaceAll(" ", "") ;
+      format_.ReplaceAll("\t", "") ;
+      format_.ReplaceAll("lg", "") ;
+      format_.ReplaceAll("s", "") ;
+      format_.ReplaceAll("%*", "0") ;
+      format_.ReplaceAll("%", "1") ;
+      if (!format_.IsDigit()) {
+         Error("TGraphAsymmErrors", "Incorrect input format! Allowed format tags are {\"%%lg\",\"%%*lg\" or \"%%*s\"}");
+         return ;
+      }
+      Int_t ntokens = format_.Length() ;
+      if (ntokens < 2) {
+         Error("TGraphAsymmErrors", "Incorrect input format! Only %d tag(s) in format whereas at least 2 \"%%lg\" tags are expected!", ntokens);
+         return ;
+      }
+      Int_t ntokensToBeSaved = 0 ;
+      Bool_t * isTokenToBeSaved = new Bool_t [ntokens] ;
+      for (Int_t idx = 0; idx < ntokens; idx++) {
+         isTokenToBeSaved[idx] = TString::Format("%c", format_[idx]).Atoi() ; //atoi(&format_[idx]) does not work for some reason...
+         if (isTokenToBeSaved[idx] == 1) {
+            ntokensToBeSaved++ ;
+         }
+      }
+      if (ntokens >= 2 && (ntokensToBeSaved < 2 || ntokensToBeSaved > 4)) { //first condition not to repeat the previous error message
+         Error("TGraphAsymmErrors", "Incorrect input format! There are %d \"%%lg\" tag(s) in format whereas 2,3 or 4 are expected!", ntokensToBeSaved);
+         delete [] isTokenToBeSaved ;
+         return ;
+      }
+
+      // Initializing loop variables
+      Bool_t isLineToBeSkipped = kFALSE ; //empty and ill-formed lines
+      char * token = NULL ;
+      TString token_str = "" ;
+      Int_t token_idx = 0 ;
+      Double_t * value = new Double_t [6] ; //x,y,exl, exh, eyl, eyh buffers
+      for (Int_t k = 0; k < 6; k++) {
+         value[k] = 0. ;
+      }
+      Int_t value_idx = 0 ;
+
+      // Looping
+      while (std::getline(infile, line, '\n')) {
+         if (line != "") {
+            if (line[line.size() - 1] == char(13)) {  // removing DOS CR character
+               line.erase(line.end() - 1, line.end()) ;
+            }
+            token = strtok(const_cast<char*>(line.c_str()), option) ;
+            while (token != NULL && value_idx < ntokensToBeSaved) {
+               if (isTokenToBeSaved[token_idx]) {
+                  token_str = TString(token) ;
+                  token_str.ReplaceAll("\t", "") ;
+                  if (!token_str.IsFloat()) {
+                     isLineToBeSkipped = kTRUE ;
+                     break ;
+                  } else {
+                     value[value_idx] = token_str.Atof() ;
+                     value_idx++ ;
+                  }
+               }
+               token = strtok(NULL, option) ; //next token
+               token_idx++ ;
+            }
+            if (!isLineToBeSkipped && value_idx > 1) { //i.e. 2,3 or 4
+               x = value[0] ;
+               y = value[1] ;
+               exl = value[2] ;
+               exh = value[3] ;
+               eyl = value[4] ;
+               eyh = value[5] ;
+               SetPoint(np, x, y) ;
+               SetPointError(np, exl, exh, eyl, eyh);
+               np++ ;
+            }
+         }
+         isLineToBeSkipped = kFALSE ;
+         token = NULL ;
+         token_idx = 0 ;
+         value_idx = 0 ;
+      }
+      Set(np) ;
+
+      // Cleaning
+      delete [] isTokenToBeSaved ;
+      delete [] value ;
+      delete token ;
+   }
+   infile.close();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// TGraphAsymmErrors default destructor.
 
 TGraphAsymmErrors::~TGraphAsymmErrors()
@@ -395,6 +545,7 @@ void TGraphAsymmErrors::BayesDivide(const TH1* pass, const TH1* total, Option_t 
 /// - n     : normal approximation propagation (see TEfficiency::Normal)
 /// - ac    : Agresti-Coull interval (see TEfficiency::AgrestiCoull)
 /// - fc    : Feldman-Cousins interval (see TEfficiency::FeldmanCousinsInterval)
+/// - midp  : Lancaster mid-P interval (see TEfficiency::MidPInterval)
 /// - b(a,b): bayesian interval using a prior probability ~Beta(a,b); a,b > 0
 ///           (see TEfficiency::Bayesian)
 /// - mode  : use mode of posterior for Bayesian interval (default is mean)
@@ -433,18 +584,44 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
    //entries
    Bool_t bEffective = false;
    //compare sum of weights with sum of squares of weights
-   Double_t stats[TH1::kNstat];
-   pass->GetStats(stats);
-   if (TMath::Abs(stats[0] -stats[1]) > 1e-6)
-      bEffective = true;
-   total->GetStats(stats);
-   if (TMath::Abs(stats[0] -stats[1]) > 1e-6)
+   // re-compute here to be sure to get the right values
+   Double_t psumw = 0;
+   Double_t psumw2 = 0; 
+   if (pass->GetSumw2()->fN > 0) {
+      for (int i = 0; i < pass->GetNcells(); ++i) {
+         psumw += pass->GetBinContent(i);
+         psumw2 += pass->GetSumw2()->At(i);
+      }
+   }
+   else {
+      psumw = pass->GetSumOfWeights();
+      psumw2 = psumw;
+   }
+   if (TMath::Abs(psumw - psumw2) > 1e-6)
       bEffective = true;
 
-   if (bEffective && (pass->GetSumw2()->fN == 0 || total->GetSumw2()->fN == 0) ) {
-      Warning("Divide","histogram have been computed with weights but the sum of weight squares are not stored in the histogram. Error calculation is performed ignoring the weights");
-      bEffective = false;
+   Double_t tsumw = 0;
+   Double_t tsumw2 = 0; 
+   if (total->GetSumw2()->fN > 0) {
+      for (int i = 0; i < total->GetNcells(); ++i) {
+         tsumw += total->GetBinContent(i);
+         tsumw2 += total->GetSumw2()->At(i);
+      }
    }
+   else {
+      tsumw = pass->GetSumOfWeights();
+      tsumw2 = tsumw;
+   }
+   if (TMath::Abs(tsumw - tsumw2) > 1e-6)
+      bEffective = true;
+
+
+
+   // we do not want to ignore the weights
+   // if (bEffective && (pass->GetSumw2()->fN == 0 || total->GetSumw2()->fN == 0) ) {
+   //    Warning("Divide","histogram have been computed with weights but the sum of weight squares are not stored in the histogram. Error calculation is performed ignoring the weights");
+   //    bEffective = false;
+   // }
 
    //parse option
    TString option = opt;
@@ -453,7 +630,7 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
    Bool_t bVerbose = false;
    //pointer to function returning the boundaries of the confidence interval
    //(is only used in the frequentist cases.)
-   Double_t (*pBound)(Int_t,Int_t,Double_t,Bool_t) = &TEfficiency::ClopperPearson; // default method
+   Double_t (*pBound)(Double_t,Double_t,Double_t,Bool_t) = &TEfficiency::ClopperPearson; // default method
    //confidence level
    Double_t conf = 0.682689492137;
    //values for bayesian statistics
@@ -465,7 +642,10 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
    if(option.Contains("v")) {
       option.ReplaceAll("v","");
       bVerbose = true;
+      if (bEffective)
+         Info("Divide","weight will be considered in the Histogram Ratio"); 
    }
+
 
    //confidence level
    if(option.Contains("cl=")) {
@@ -506,6 +686,11 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
    if(option.Contains("fc")) {
       option.ReplaceAll("fc","");
       pBound = &TEfficiency::FeldmanCousins;
+   }
+   // mid-P Lancaster interval
+   if(option.Contains("midp")) {
+      option.ReplaceAll("midp","");
+      pBound = &TEfficiency::MidPInterval;
    }
 
    //bayesian with prior
@@ -550,8 +735,9 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
       option.ReplaceAll("pois","");
    }
 
-   // weights works only in case of Normal approximation or Bayesian
-   if (bEffective && !bIsBayesian && pBound != &TEfficiency::Normal ) {
+   // weights works only in case of Normal approximation or Bayesian for binomial interval
+   // in case of Poisson ratio we can use weights by rescaling the obtained results using the effective entries
+   if ( ( bEffective && !bPoissonRatio) && !bIsBayesian && pBound != &TEfficiency::Normal ) {
       Warning("Divide","Histograms have weights: only Normal or Bayesian error calculation is supported");
       Info("Divide","Using now the Normal approximation for weighted histograms");
    }
@@ -591,8 +777,8 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
    //this keeps track of the number of points added to the graph
    int npoint=0;
    //number of total and passed events
-   Int_t t = 0 , p = 0;
-   Double_t tw = 0, tw2 = 0, pw = 0, pw2 = 0; // for the case of weights
+   Double_t t = 0 , p = 0;
+   Double_t tw = 0, tw2 = 0, pw = 0, pw2 = 0, wratio = 1; // for the case of weights
    //loop over all bins and fill the graph
    for (Int_t b=1; b<=nbins; ++b) {
 
@@ -604,17 +790,50 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
       // special case in case of weights we have to consider the sum of weights and the sum of weight squares
        if(bEffective) {
           tw =  total->GetBinContent(b);
-          tw2 = total->GetSumw2()->At(b);
+          tw2 = (total->GetSumw2()->fN > 0) ? total->GetSumw2()->At(b) : tw;
           pw =  pass->GetBinContent(b);
-          pw2 = pass->GetSumw2()->At(b);
+          pw2 = (pass->GetSumw2()->fN > 0) ? pass->GetSumw2()->At(b) : pw;
 
           if(bPoissonRatio)
           {
-            tw += pw;
-            tw2 += pw2;
-          }
+             // tw += pw;
+             // tw2 += pw2;
+             // compute ratio on the effective entries ( p and t) 
+             // special case is when (pw=0, pw2=0) in this case we cannot get the bin weight.
+             // we use then the overall weight of the full histogram 
+             if (pw == 0 && pw2 == 0)
+                p = 0;
+             else
+                p = (pw*pw)/pw2;
 
-          if (tw <= 0 && !plot0Bins) continue; // skip bins with total <= 0
+             if (tw == 0 && tw2 == 0)
+                t = 0;
+             else
+                t = (tw*tw)/tw2;
+
+             if (pw > 0 && tw > 0)
+                // this is the ratio of the two bin weights ( pw/p  / t/tw )
+                wratio = (pw*t)/(p * tw);
+             else if (pw == 0 && tw > 0)
+                // case p histogram has zero  compute the weights from all the histogram
+                // weight of histogram - sumw2/sumw
+                wratio = (psumw2 * t) /(psumw * tw );
+             else if (tw == 0 && pw > 0)
+                // case t histogram has zero  compute the weights from all the histogram
+                // weight of histogram - sumw2/sumw
+                wratio = (pw * tsumw) /(p * tsumw2 );
+             else if (p > 0)
+                wratio = pw/p; //not sure if needed 
+             else {
+                // case both pw and tw are zero - we skip these bins
+                if (!plot0Bins) continue; // skip bins with total <= 0
+             }
+
+             t += p;
+             //std::cout << p << "   " << t << "  " << wratio << std::endl;
+          }
+          else
+             if (tw <= 0 && !plot0Bins) continue; // skip bins with total <= 0
 
           // in the case of weights have the formula only for
           // the normal and  bayesian statistics (see below)
@@ -636,14 +855,14 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
       if(bIsBayesian) {
          double aa,bb;
 
-         if (bEffective && tw2 <= 0) {
+         if ((bEffective && !bPoissonRatio) && tw2 <= 0) {
             // case of bins with zero errors
             eff = pw/tw;
             low = eff; upper = eff;
          }
          else {
 
-            if (bEffective) {
+            if (bEffective && !bPoissonRatio) {
                // tw/tw2 renormalize the weights
                double norm = tw/tw2;  // case of tw2 = 0 is treated above
                aa =  pw * norm + alpha;
@@ -669,7 +888,7 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
       }
       // case of non-bayesian statistics
       else {
-         if (bEffective) {
+         if (bEffective && !bPoissonRatio) {
 
             if (tw > 0) {
 
@@ -689,9 +908,8 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
                if (upper > 1) upper = 1.;
             }
          }
-
          else {
-            // when not using weights
+            // when not using weights (all cases) or in case of  Poisson ratio with weights
             if(t)
                eff = ((Double_t)p)/t;
 
@@ -700,13 +918,19 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
          }
       }
       // treat as Poisson ratio
-      if(bPoissonRatio && eff != 1)
+      if(bPoissonRatio)
       {
-        Double_t cor = 1./pow(1 - eff,2);
         Double_t ratio = eff/(1 - eff);
-        low = ratio - cor * (eff - low);
-        upper = ratio + cor * (upper - eff);
+        // take the intervals in eff as intervals in the Poisson ratio
+        low = low/(1. - low);
+        upper = upper/(1.-upper);
         eff = ratio;
+        if (bEffective) {
+           //scale result by the ratio of the weight
+           eff *= wratio;
+           low *= wratio;
+           upper *= wratio;
+        }
       }
       //Set the point center and its errors
       SetPoint(npoint,pass->GetBinCenter(b),eff);
@@ -718,6 +942,9 @@ void TGraphAsymmErrors::Divide(const TH1* pass, const TH1* total, Option_t *opt)
    }
 
    Set(npoint);//tell the graph how many points we've really added
+   if (npoint < nbins)
+      Warning("Divide","Number of graph points is different than histogram bins - %d points have been skipped",nbins-npoint);
+
 
    if (bVerbose) {
       Info("Divide","made a graph with %d points from %d bins",npoint,nbins);

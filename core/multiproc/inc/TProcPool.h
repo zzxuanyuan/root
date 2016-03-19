@@ -66,13 +66,13 @@ public:
    template<class F, class T, class R> auto MapReduce(F func, std::vector<T> &args, R redfunc) -> decltype(func(args.front()));
    /// \endcond
 
-   // Process
+   // ProcTree
    // this version requires that procFunc returns a ptr to TObject or inheriting classes and takes a TTreeReader& (both enforced at compile-time)
-   template<class F> auto Process(const std::vector<std::string>& fileNames, F procFunc, const std::string& treeName = "", ULong64_t nToProcess = 0) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
-   template<class F> auto Process(const std::string& fileName, F procFunc, const std::string& treeName = "", ULong64_t nToProcess = 0) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
-   template<class F> auto Process(TFileCollection& files, F procFunc, const std::string& treeName = "", ULong64_t nToProcess = 0) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
-   template<class F> auto Process(TChain& files, F procFunc, const std::string& treeName = "", ULong64_t nToProcess = 0) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
-   template<class F> auto Process(TTree& tree, F procFunc, ULong64_t nToProcess = 0) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
+   template<class F> auto ProcTree(const std::vector<std::string>& fileNames, F procFunc, const std::string& treeName = "", ULong64_t nToProcess = 0) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
+   template<class F> auto ProcTree(const std::string& fileName, F procFunc, const std::string& treeName = "", ULong64_t nToProcess = 0) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
+   template<class F> auto ProcTree(TFileCollection& files, F procFunc, const std::string& treeName = "", ULong64_t nToProcess = 0) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
+   template<class F> auto ProcTree(TChain& files, F procFunc, const std::string& treeName = "", ULong64_t nToProcess = 0) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
+   template<class F> auto ProcTree(TTree& tree, F procFunc, ULong64_t nToProcess = 0) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
 
    void SetNWorkers(unsigned n) { TMPClient::SetNWorkers(n); }
    unsigned GetNWorkers() const { return TMPClient::GetNWorkers(); }
@@ -89,14 +89,17 @@ private:
    unsigned fNProcessed; ///< number of arguments already passed to the workers
    unsigned fNToProcess; ///< total number of arguments to pass to the workers
 
+   /// A collection of the types of tasks that TProcPool can execute.
+   /// It is used to interpret in the right way and properly reply to the
+   /// messages received (see, for example, TProcPool::HandleInput)
    enum class ETask : unsigned {
-      kNoTask = 0,
-      kMap,
-      kMapWithArg,
-      kMapRed,
-      kMapRedWithArg,
-      kProcRange,
-      kProcFile,
+      kNoTask = 0,   ///< no task is being executed
+      kMap,          ///< a Map method with no arguments is being executed
+      kMapWithArg,   ///< a Map method with arguments is being executed
+      kMapRed,       ///< a MapReduce method with no arguments is being executed
+      kMapRedWithArg, ///< a MapReduce method with arguments is being executed
+      kProcByRange,   ///< a ProcTree method is being executed and each worker will process a certain range of each file
+      kProcByFile,    ///< a ProcTree method is being executed and each worker will process a different file
    } fTask; ///< the kind of task that is being executed, if any
 };
 
@@ -300,8 +303,7 @@ auto TProcPool::MapReduce(F func, T &args, R redfunc) -> decltype(++(args.begin(
       std::make_move_iterator(std::begin(args)),
       std::make_move_iterator(std::end(args))
    );
-   const auto &reslist = MapReduce(func, vargs, redfunc);
-   return reslist;
+   return MapReduce(func, vargs, redfunc);
 }
 
 /// \cond doxygen should ignore these methods
@@ -327,15 +329,16 @@ template<class F, class T, class R>
 auto TProcPool::MapReduce(F func, std::initializer_list<T> args, R redfunc) -> decltype(func(*args.begin()))
 {
    std::vector<T> vargs(std::move(args));
-   const auto &reslist = MapReduce(func, vargs, redfunc);
-   return reslist;
+   return MapReduce(func, vargs, redfunc);
 }
-
 
 template<class F, class T, class R>
 auto TProcPool::MapReduce(F func, std::vector<T> &args, R redfunc) -> decltype(func(args.front()))
 {
-   using retType = decltype(func(args.front()));
+   using retTypeCand = decltype(func(args.front()));
+   using retTypeCandNoPtr = typename std::remove_pointer<retTypeCand>::type;
+   using TObjType = typename std::conditional<std::is_pointer<retTypeCand>::value, TObject*, TObject>::type;
+   using retType = typename std::conditional<std::is_base_of<TObject, retTypeCandNoPtr>::value, TObjType, retTypeCand>::type;
    //prepare environment
    Reset();
    fTask = ETask::kMapRedWithArg;
@@ -349,7 +352,7 @@ auto TProcPool::MapReduce(F func, std::vector<T> &args, R redfunc) -> decltype(f
    SetNWorkers(oldNWorkers);
    if (!ok) {
       std::cerr << "[E][C] Could not fork. Aborting operation\n";
-      return retType();
+      return retTypeCand();
    }
 
    //give workers their first task
@@ -365,13 +368,13 @@ auto TProcPool::MapReduce(F func, std::vector<T> &args, R redfunc) -> decltype(f
 
    ReapWorkers();
    fTask = ETask::kNoTask;
-   return redfunc(reslist);
+   return ROOT::Internal::PoolUtils::ResultCaster<retType, retTypeCand>::CastIfNeeded(redfunc(reslist));
 }
 /// \endcond
 
 
 template<class F>
-auto TProcPool::Process(const std::vector<std::string>& fileNames, F procFunc, const std::string& treeName, ULong64_t nToProcess) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type
+auto TProcPool::ProcTree(const std::vector<std::string>& fileNames, F procFunc, const std::string& treeName, ULong64_t nToProcess) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type
 {
    using retType = typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
    static_assert(std::is_constructible<TObject*, retType>::value, "procFunc must return a pointer to a class inheriting from TObject, and must take a reference to TTreeReader as the only argument");
@@ -381,7 +384,7 @@ auto TProcPool::Process(const std::vector<std::string>& fileNames, F procFunc, c
    unsigned nWorkers = GetNWorkers();
 
    //fork
-   TPoolProcessor<F> worker(procFunc, fileNames, treeName, nWorkers, nToProcess/nWorkers);
+   TPoolProcessor<F> worker(procFunc, fileNames, treeName, nWorkers, nToProcess);
    bool ok = Fork(worker);
    if(!ok) {
       std::cerr << "[E][C] Could not fork. Aborting operation\n";
@@ -390,7 +393,7 @@ auto TProcPool::Process(const std::vector<std::string>& fileNames, F procFunc, c
 
    if(fileNames.size() < nWorkers) {
       //TTree entry granularity. For each file, we divide entries equally between workers
-      fTask = ETask::kProcRange;
+      fTask = ETask::kProcByRange;
       //Tell workers to start processing entries
       fNToProcess = nWorkers*fileNames.size(); //this is the total number of ranges that will be processed by all workers cumulatively
       std::vector<unsigned> args(nWorkers);
@@ -400,7 +403,7 @@ auto TProcPool::Process(const std::vector<std::string>& fileNames, F procFunc, c
          std::cerr << "[E][C] There was an error while sending tasks to workers. Some entries might not be processed.\n";
    } else {
       //file granularity. each worker processes one whole file as a single task
-      fTask = ETask::kProcFile;
+      fTask = ETask::kProcByFile;
       fNToProcess = fileNames.size();
       std::vector<unsigned> args(nWorkers);
       std::iota(args.begin(), args.end(), 0);
@@ -424,27 +427,27 @@ auto TProcPool::Process(const std::vector<std::string>& fileNames, F procFunc, c
 
 
 template<class F>
-auto TProcPool::Process(const std::string& fileName, F procFunc, const std::string& treeName, ULong64_t nToProcess) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type
+auto TProcPool::ProcTree(const std::string& fileName, F procFunc, const std::string& treeName, ULong64_t nToProcess) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type
 {
    std::vector<std::string> singleFileName(1, fileName);
-   return Process(singleFileName, procFunc, treeName, nToProcess);
+   return ProcTree(singleFileName, procFunc, treeName, nToProcess);
 }
 
 
 template<class F>
-auto TProcPool::Process(TFileCollection& files, F procFunc, const std::string& treeName, ULong64_t nToProcess) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type
+auto TProcPool::ProcTree(TFileCollection& files, F procFunc, const std::string& treeName, ULong64_t nToProcess) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type
 {
    std::vector<std::string> fileNames(files.GetNFiles());
    unsigned count = 0;
    for(auto f : *static_cast<THashList*>(files.GetList()))
       fileNames[count++] = static_cast<TFileInfo*>(f)->GetCurrentUrl()->GetFile();
 
-   return Process(fileNames, procFunc, treeName, nToProcess);
+   return ProcTree(fileNames, procFunc, treeName, nToProcess);
 }
 
 
 template<class F>
-auto TProcPool::Process(TChain& files, F procFunc, const std::string& treeName, ULong64_t nToProcess) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type
+auto TProcPool::ProcTree(TChain& files, F procFunc, const std::string& treeName, ULong64_t nToProcess) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type
 {
    TObjArray* filelist = files.GetListOfFiles();
    std::vector<std::string> fileNames(filelist->GetEntries());
@@ -452,12 +455,12 @@ auto TProcPool::Process(TChain& files, F procFunc, const std::string& treeName, 
    for(auto f : *filelist)
       fileNames[count++] = f->GetTitle();
 
-   return Process(fileNames, procFunc, treeName, nToProcess);
+   return ProcTree(fileNames, procFunc, treeName, nToProcess);
 }
 
 
 template<class F>
-auto TProcPool::Process(TTree& tree, F procFunc, ULong64_t nToProcess) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type
+auto TProcPool::ProcTree(TTree& tree, F procFunc, ULong64_t nToProcess) -> typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type
 {
    using retType = typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type;
    static_assert(std::is_constructible<TObject*, retType>::value, "procFunc must return a pointer to a class inheriting from TObject, and must take a reference to TTreeReader as the only argument");
@@ -467,7 +470,7 @@ auto TProcPool::Process(TTree& tree, F procFunc, ULong64_t nToProcess) -> typena
    unsigned nWorkers = GetNWorkers();
 
    //fork
-   TPoolProcessor<F> worker(procFunc, &tree, nWorkers, nToProcess/nWorkers);
+   TPoolProcessor<F> worker(procFunc, &tree, nWorkers, nToProcess);
    bool ok = Fork(worker);
    if(!ok) {
       std::cerr << "[E][C] Could not fork. Aborting operation\n";
@@ -475,7 +478,7 @@ auto TProcPool::Process(TTree& tree, F procFunc, ULong64_t nToProcess) -> typena
    }
 
    //divide entries equally between workers
-   fTask = ETask::kProcRange;
+   fTask = ETask::kProcByRange;
 
    //tell workers to start processing entries
    fNToProcess = nWorkers; //this is the total number of ranges that will be processed by all workers cumulatively

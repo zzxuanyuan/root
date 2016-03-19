@@ -97,6 +97,10 @@ a 'using namespace std;' has been applied to and with:
 #include "TListOfEnumsWithLock.h"
 #include "TViewPubDataMembers.h"
 #include "TViewPubFunctions.h"
+#include "TArray.h"
+#include "TClonesArray.h"
+#include "TRef.h"
+#include "TRefArray.h"
 
 using namespace std;
 
@@ -175,10 +179,11 @@ Bool_t TClass::TDeclNameRegistry::HasDeclName(const char *name) const
 
 TClass::TDeclNameRegistry::~TDeclNameRegistry()
 {
-   if (fVerbLevel>1){
-      printf("TDeclNameRegistry Destructor. List of %lu names:\n",fClassNamesSet.size());
-      for(auto const & key:fClassNamesSet){
-         printf(" - %s\n",key.c_str());
+   if (fVerbLevel > 1) {
+      printf("TDeclNameRegistry Destructor. List of %lu names:\n",
+             (long unsigned int)fClassNamesSet.size());
+      for (auto const & key: fClassNamesSet) {
+         printf(" - %s\n", key.c_str());
       }
    }
 }
@@ -1034,6 +1039,10 @@ TClass::TClass() :
    // Default ctor.
 
    R__LOCKGUARD2(gInterpreterMutex);
+   {
+      TMmallocDescTemp setreset;
+      fStreamerInfo = new TObjArray(1, -2);
+   }
    fDeclFileLine   = -2;    // -2 for standalone TClass (checked in dtor)
 }
 
@@ -1069,6 +1078,10 @@ TClass::TClass(const char *name, Bool_t silent) :
    if (!gROOT)
       ::Fatal("TClass::TClass", "ROOT system not initialized");
 
+   {
+      TMmallocDescTemp setreset;
+      fStreamerInfo = new TObjArray(1, -2);
+   }
    fDeclFileLine   = -2;    // -2 for standalone TClass (checked in dtor)
 
    SetBit(kLoading);
@@ -1237,7 +1250,7 @@ TClass::TClass(const char *name, Version_t cversion,
 /// of a class. It has list to baseclasses, datamembers and methods.
 
 TClass::TClass(const char *name, Version_t cversion,
-               const type_info &info, TVirtualIsAProxy *isa,
+               const std::type_info &info, TVirtualIsAProxy *isa,
                const char *dfil, const char *ifil, Int_t dl, Int_t il,
                Bool_t silent) :
    TDictionary(name),
@@ -1294,7 +1307,7 @@ void TClass::ForceReload (TClass* oldcl)
 /// of a class. It has list to baseclasses, datamembers and methods.
 
 void TClass::Init(const char *name, Version_t cversion,
-                  const type_info *typeinfo, TVirtualIsAProxy *isa,
+                  const std::type_info *typeinfo, TVirtualIsAProxy *isa,
                   const char *dfil, const char *ifil, Int_t dl, Int_t il,
                   ClassInfo_t *givenInfo,
                   Bool_t silent)
@@ -1599,7 +1612,7 @@ TClass::~TClass()
 
    if (fStreamerInfo)
       fStreamerInfo->Delete();
-   delete fStreamerInfo; fStreamerInfo=0;
+   delete fStreamerInfo; fStreamerInfo = nullptr;
 
    if (fDeclFileLine >= -1)
       TClass::RemoveClass(this);
@@ -2138,6 +2151,78 @@ void TClass::InterpretedShowMembers(void* obj, TMemberInspector &insp, Bool_t is
    return gInterpreter->InspectMembers(insp, obj, this, isTransient);
 }
 
+Bool_t TClass::CanSplitBaseAllow()
+{
+   if (fCanSplit >= 0) {
+      return ! ( fCanSplit & 0x2 );
+   }
+
+   R__LOCKGUARD(gInterpreterMutex);
+
+   if (GetCollectionProxy() != nullptr) {
+      // A collection can never affect its derived class 'splittability'
+      return kTRUE;
+   }
+
+   if (this == TRef::Class()) { fCanSplit = 2; return kFALSE; }
+   if (this == TRefArray::Class()) { fCanSplit = 2; return kFALSE; }
+   if (this == TArray::Class()) { fCanSplit = 2; return kFALSE; }
+   if (this == TClonesArray::Class()) { fCanSplit = 1; return kTRUE; }
+   if (this == TCollection::Class()) { fCanSplit = 2; return kFALSE; }
+
+   // TTree is not always available (for example in rootcling), so we need
+   // to grab it silently.
+   auto refTreeClass( TClass::GetClass("TTree",kTRUE,kTRUE) );
+   if (this == refTreeClass) { fCanSplit = 2; return kFALSE; }
+
+   if (!HasDataMemberInfo()) {
+      TVirtualStreamerInfo *sinfo = ((TClass *)this)->GetCurrentStreamerInfo();
+      if (sinfo==0) sinfo = GetStreamerInfo();
+      TIter next(sinfo->GetElements());
+      TStreamerElement *element;
+      while ((element = (TStreamerElement*)next())) {
+         if (element->IsA() == TStreamerBase::Class()) {
+            TClass *clbase = element->GetClassPointer();
+            if (!clbase) {
+               // If there is a missing base class, we can't split the immediate
+               // derived class.
+               fCanSplit = 0;
+               return kFALSE;
+            } else if (!clbase->CanSplitBaseAllow()) {
+               fCanSplit = 2;
+               return kFALSE;
+            }
+         }
+      }
+   }
+
+   // If we don't have data member info there is no more information
+   // we can find out.
+   if (!HasDataMemberInfo()) return kTRUE;
+
+   TObjLink *lnk = GetListOfBases() ? fBase->FirstLink() : 0;
+
+   // Look at inheritance tree
+   while (lnk) {
+      TClass     *c;
+      TBaseClass *base = (TBaseClass*) lnk->GetObject();
+      c = base->GetClassPointer();
+      if (c) {
+         if (!c) {
+            // If there is a missing base class, we can't split the immediate
+            // derived class.
+            fCanSplit = 0;
+            return kFALSE;
+         } else if (!c->CanSplitBaseAllow()) {
+            fCanSplit = 2;
+            return kFALSE;
+         }
+      }
+      lnk = lnk->Next();
+   }
+   return kTRUE;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Return true if the data member of this TClass can be saved separately.
 
@@ -2148,7 +2233,7 @@ Bool_t TClass::CanSplit() const
    // deal with the info in MakeProject
    if (fCanSplit >= 0) {
       // The user explicitly set the value
-      return fCanSplit != 0;
+      return (fCanSplit & 0x1) == 1;
    }
 
    R__LOCKGUARD(gInterpreterMutex);
@@ -2213,18 +2298,9 @@ Bool_t TClass::CanSplit() const
       return kFALSE;
    }
 
-   // Calls to InheritsFrom for STL collection might cause unnecessary autoparsing.
-   if (InheritsFrom("TRef"))      { This->fCanSplit = 0; return kFALSE; }
-   if (InheritsFrom("TRefArray")) { This->fCanSplit = 0; return kFALSE; }
-   if (InheritsFrom("TArray"))    { This->fCanSplit = 0; return kFALSE; }
-   if (InheritsFrom("TCollection") && !InheritsFrom("TClonesArray")) { This->fCanSplit = 0; return kFALSE; }
-   if (InheritsFrom("TTree"))     { This->fCanSplit = 0; return kFALSE; }
 
-   TClass *ncThis = const_cast<TClass*>(this);
-   TIter nextb(ncThis->GetListOfBases());
-   TBaseClass *base;
-   while((base = (TBaseClass*)nextb())) {
-      if (!base->GetClassPointer()) { This->fCanSplit = 0; return kFALSE; }
+   if ( !This->CanSplitBaseAllow() ) {
+      return kFALSE;
    }
 
    This->fCanSplit = 1;
@@ -2743,11 +2819,11 @@ TClassStreamer *TClass::GetStreamer() const
       if (local==0) return fStreamer;
       if (local->fStreamer==0) {
          local->fStreamer = fStreamer->Generate();
-         const type_info &orig = ( typeid(*fStreamer) );
+         const std::type_info &orig = ( typeid(*fStreamer) );
          if (!local->fStreamer) {
             Warning("GetStreamer","For %s, the TClassStreamer (%s) passed's call to Generate failed!",GetName(),orig.name());
          } else {
-            const type_info &copy = ( typeid(*local->fStreamer) );
+            const std::type_info &copy = ( typeid(*local->fStreamer) );
             if (strcmp(orig.name(),copy.name())!=0) {
                Warning("GetStreamer","For %s, the TClassStreamer passed does not properly implement the Generate method (%s vs %s)\n",GetName(),orig.name(),copy.name());
             }
@@ -2971,7 +3047,7 @@ TClass *TClass::GetClass(const char *name, Bool_t load, Bool_t silent)
 ////////////////////////////////////////////////////////////////////////////////
 /// Return pointer to class with name.
 
-TClass *TClass::GetClass(const type_info& typeinfo, Bool_t load, Bool_t /* silent */)
+TClass *TClass::GetClass(const std::type_info& typeinfo, Bool_t load, Bool_t /* silent */)
 {
    //protect access to TROOT::GetListOfClasses
    R__LOCKGUARD2(gInterpreterMutex);
@@ -3122,7 +3198,7 @@ DictFuncPtr_t  TClass::GetDict (const char *cname)
 /// Return a pointer to the dictionary loading function generated by
 /// rootcint
 
-DictFuncPtr_t  TClass::GetDict (const type_info& info)
+DictFuncPtr_t  TClass::GetDict (const std::type_info& info)
 {
    return TClassTable::GetDict(info);
 }
@@ -4263,16 +4339,11 @@ TVirtualStreamerInfo* TClass::GetStreamerInfo(Int_t version /* = 0 */) const
    if (version == 0) {
       version = fClassVersion;
    }
-   if (!fStreamerInfo) {
-      TMmallocDescTemp setreset;
-      fStreamerInfo = new TObjArray(version + 10, -2);
-   } else {
-      Int_t ninfos = fStreamerInfo->GetSize();
-      if ((version < -1) || (version >= ninfos)) {
-         Error("GetStreamerInfo", "class: %s, attempting to access a wrong version: %d", GetName(), version);
-         // FIXME: Shouldn't we go to -1 here, or better just abort?
-         version = 0;
-      }
+   Int_t ninfos = fStreamerInfo->GetSize();
+   if ((version < -1) || (version >= ninfos)) {
+      Error("GetStreamerInfo", "class: %s, attempting to access a wrong version: %d", GetName(), version);
+      // FIXME: Shouldn't we go to -1 here, or better just abort?
+      version = 0;
    }
    TVirtualStreamerInfo* sinfo = (TVirtualStreamerInfo*) fStreamerInfo->At(version);
    if (!sinfo && (version != fClassVersion)) {
@@ -5190,6 +5261,7 @@ void TClass::DeleteArray(void *ary, Bool_t dtorOnly)
 ///   -1: Use the default calculation
 ///    0: Disallow splitting
 ///    1: Always allow splitting.
+///    2: Disallow splitting of the class and splitting of any it's derived classes.
 
 void TClass::SetCanSplit(Int_t splitmode)
 {
@@ -5367,9 +5439,9 @@ void TClass::LoadClassInfo() const
    if (!fClassInfo) gInterpreter->SetClassInfo(const_cast<TClass*>(this));   // sets fClassInfo pointer
    if (!gInterpreter->IsAutoParsingSuspended()) {
       if (!fClassInfo) {
-    ::Error("TClass::LoadClassInfo",
-       "no interpreter information for class %s is available even though it has a TClass initialization routine.",
-       fName.Data());
+         ::Error("TClass::LoadClassInfo",
+                 "no interpreter information for class %s is available even though it has a TClass initialization routine.",
+                 fName.Data());
       }
       fCanLoadClassInfo = kFALSE;
    }
@@ -5388,7 +5460,7 @@ void TClass::Store(TBuffer &b) const
 /// (see the ClassDef macro).
 
 TClass *ROOT::CreateClass(const char *cname, Version_t id,
-                          const type_info &info, TVirtualIsAProxy *isa,
+                          const std::type_info &info, TVirtualIsAProxy *isa,
                           const char *dfil, const char *ifil,
                           Int_t dl, Int_t il)
 {
@@ -5621,11 +5693,20 @@ Long_t TClass::Property() const
          kl->fStreamerType  = kExternal;
          kl->fStreamerImpl  = &TClass::StreamerExternal;
       }
-      kl->fClassProperty = gCling->ClassInfo_ClassProperty(GetClassInfo());
-      // Must set this last since other threads may read fProperty
-      // and think all test bits have been properly set.
-      kl->fProperty = gCling->ClassInfo_Property(fClassInfo);
-
+      if (GetClassInfo()) {
+         // In the case where the TClass for one of ROOT's core class
+         // (eg TClonesArray for map<int,TClonesArray*>) is requesting
+         // during the execution of rootcling, we could end up in a situation
+         // where we should have the information (since TClonesArray has
+         // a dictionary as part of libCore) but do not because the user
+         // only include a forward declaration of TClonesArray and we do not
+         // forcefully load the header file either (because the autoparsing
+         // is intentionally disabled).
+         kl->fClassProperty = gCling->ClassInfo_ClassProperty(fClassInfo);
+         // Must set this last since other threads may read fProperty
+         // and think all test bits have been properly set.
+         kl->fProperty = gCling->ClassInfo_Property(fClassInfo);
+      }
    } else {
 
       if (fStreamer) {

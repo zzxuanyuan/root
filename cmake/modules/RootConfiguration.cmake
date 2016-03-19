@@ -410,6 +410,11 @@ if(mathmore)
 else()
   set(hasmathmore undef)
 endif()
+if(imt)
+  set(useimt define)
+else()
+  set(useimt undef)
+endif()
 if(CMAKE_USE_PTHREADS_INIT)
   set(haspthread define)
 else()
@@ -481,6 +486,22 @@ else()
   set(hasstdexpstringview undef)
 endif()
 
+if(found_stdstringview)
+  CHECK_CXX_SOURCE_COMPILES("#include <string_view>
+     int main() { size_t pos; std::string_view str; std::stod(str,&pos); return 0;}" found_stod_stringview)
+elseif(found_stdexpstringview)
+  CHECK_CXX_SOURCE_COMPILES("#include <experimental/string_view>
+     int main() { size_t pos; std::experimental::string_view str; std::stod(str,&pos); return 0;}" found_stod_stringview)
+else()
+  set(found_stod_stringview false)
+endif()
+
+if(found_stod_stringview)
+  set(hasstodstringview define)
+else()
+  set(hasstodstringview undef)
+endif()
+
 #---root-config----------------------------------------------------------------------------------------------
 ROOT_SHOW_OPTIONS(features)
 string(REPLACE "c++11" "cxx11" features ${features}) # change the name of the c++11 feature needed for root-config.in
@@ -515,8 +536,6 @@ configure_file(${CMAKE_SOURCE_DIR}/config/mimes.unix.in ${CMAKE_BINARY_DIR}/etc/
 ROOT_SHOW_OPTIONS(ROOT_ENABLED_OPTIONS)
 configure_file(${CMAKE_SOURCE_DIR}/cmake/scripts/ROOTConfig-version.cmake.in
                ${CMAKE_BINARY_DIR}/ROOTConfig-version.cmake @ONLY NEWLINE_STYLE UNIX)
-configure_file(${CMAKE_SOURCE_DIR}/cmake/scripts/RootUseFile.cmake.in
-               ${CMAKE_BINARY_DIR}/ROOTUseFile.cmake @ONLY NEWLINE_STYLE UNIX)
 
 #---Compiler flags (because user apps are a bit dependent on them...)----------------------------------------
 string(REGEX REPLACE "(^|[ ]*)-W[^ ]*" "" __cxxflags "${CMAKE_CXX_FLAGS}")
@@ -541,15 +560,14 @@ set(ROOT_BINARY_DIR_SETUP "
 # ROOT configured for use from the build tree - absolute paths are used.
 set(ROOT_BINARY_DIR ${CMAKE_BINARY_DIR}/bin)
 ")
-set(ROOT_MODULE_PATH_SETUP "
-# ROOT configured for use CMake modules from source tree
-set(CMAKE_MODULE_PATH \${CMAKE_MODULE_PATH} ${CMAKE_MODULE_PATH})
-")
+set(ROOT_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 
 get_property(exported_targets GLOBAL PROPERTY ROOT_EXPORTED_TARGETS)
 export(TARGETS ${exported_targets} FILE ${PROJECT_BINARY_DIR}/ROOTConfig-targets.cmake)
 configure_file(${CMAKE_SOURCE_DIR}/cmake/scripts/ROOTConfig.cmake.in
                ${CMAKE_BINARY_DIR}/ROOTConfig.cmake @ONLY NEWLINE_STYLE UNIX)
+configure_file(${CMAKE_SOURCE_DIR}/cmake/scripts/RootUseFile.cmake.in
+               ${CMAKE_BINARY_DIR}/ROOTUseFile.cmake @ONLY NEWLINE_STYLE UNIX)
 
 #---To be used from the install tree--------------------------------------------------------------------------
 # Need to calculate actual relative paths from CMAKEDIR to other locations
@@ -569,14 +587,14 @@ set(ROOT_BINARY_DIR_SETUP "
 # ROOT configured for the install with relative paths, so use these
 get_filename_component(ROOT_BINARY_DIR \"\${_thisdir}/${ROOT_CMAKE_TO_BIN_DIR}\" ABSOLUTE)
 ")
-set(ROOT_MODULE_PATH_SETUP "
-# ROOT configured for use CMake modules from installation tree
-set(CMAKE_MODULE_PATH \${CMAKE_MODULE_PATH}  \${_thisdir}/modules)
-")
+set(ROOT_MODULE_PATH "\${_thisdir}/modules")
+
 configure_file(${CMAKE_SOURCE_DIR}/cmake/scripts/ROOTConfig.cmake.in
                ${CMAKE_BINARY_DIR}/installtree/ROOTConfig.cmake @ONLY NEWLINE_STYLE UNIX)
+configure_file(${CMAKE_SOURCE_DIR}/cmake/scripts/RootUseFile.cmake.in
+               ${CMAKE_BINARY_DIR}/installtree/ROOTUseFile.cmake @ONLY NEWLINE_STYLE UNIX)
 install(FILES ${CMAKE_BINARY_DIR}/ROOTConfig-version.cmake
-              ${CMAKE_BINARY_DIR}/ROOTUseFile.cmake
+              ${CMAKE_BINARY_DIR}/installtree/ROOTUseFile.cmake
               ${CMAKE_BINARY_DIR}/installtree/ROOTConfig.cmake DESTINATION ${CMAKE_INSTALL_CMAKEDIR})
 install(EXPORT ${CMAKE_PROJECT_NAME}Exports FILE ROOTConfig-targets.cmake DESTINATION ${CMAKE_INSTALL_CMAKEDIR})
 
@@ -594,9 +612,10 @@ if(WIN32)
   # We cannot use the compiledata.sh script for windows
   configure_file(${CMAKE_SOURCE_DIR}/cmake/scripts/compiledata.win32.in include/compiledata.h NEWLINE_STYLE UNIX)
 else()
-  execute_process(COMMAND ${CMAKE_SOURCE_DIR}/build/unix/compiledata.sh include/compiledata.h "${CXX}" ""
-       "${CMAKE_CXX_FLAGS_${uppercase_CMAKE_BUILD_TYPE}}"
-        "${CMAKE_CXX_FLAGS}" "${CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS}" "${CMAKE_EXE_FLAGS}" "${LibSuffix}" "${SYSLIBS}"
+  execute_process(COMMAND ${CMAKE_SOURCE_DIR}/build/unix/compiledata.sh include/compiledata.h "${CXX}"
+        "${CMAKE_CXX_FLAGS_RELEASE}" "${CMAKE_CXX_FLAGS_DEBUG}" "${CMAKE_CXX_FLAGS}"
+        "${CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS}" "${CMAKE_EXE_FLAGS}"
+        "${LibSuffix}" "${SYSLIBS}"
         "${libdir}" "-lCore" "-lRint" "${incdir}" "" "" "${ROOT_ARCHITECTURE}" "" "${explicitlink}" )
 endif()
 

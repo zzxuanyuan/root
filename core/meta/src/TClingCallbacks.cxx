@@ -42,6 +42,7 @@ class TObject;
 extern "C" {
    void TCling__UpdateListsOnCommitted(const cling::Transaction&, Interpreter*);
    void TCling__UpdateListsOnUnloaded(const cling::Transaction&);
+   void TCling__TransactionRollback(const cling::Transaction&);
    void TCling__GetNormalizedContext(const ROOT::TMetaUtils::TNormalizedCtxt*&);
    TObject* TCling__GetObjectAddress(const char *Name, void *&LookupCtx);
    Decl* TCling__GetObjectDecl(TObject *obj);
@@ -266,8 +267,7 @@ bool TClingCallbacks::LookupObject(const DeclContext* DC, DeclarationName Name) 
 
 bool TClingCallbacks::LookupObject(clang::TagDecl* Tag) {
    // Clang needs Tag's complete definition. Can we parse it?
-   //if (!IsAutoloadingEnabled() || fIsAutoloadingRecursively) return false;
-   if (fIsAutoloadingRecursively) return false;
+   if (fIsAutoloadingRecursively || fIsAutoParsingSuspended) return false;
 
    if (RecordDecl* RD = dyn_cast<RecordDecl>(Tag)) {
       Sema &SemaR = m_Interpreter->getSema();
@@ -684,6 +684,15 @@ void TClingCallbacks::TransactionUnloaded(const Transaction &T) {
       return;
 
    TCling__UpdateListsOnUnloaded(T);
+}
+
+// The callback is used to clear the autoparsing caches.
+//
+void TClingCallbacks::TransactionRollback(const Transaction &T) {
+   if (T.empty())
+      return;
+
+   TCling__TransactionRollback(T);
 }
 
 void TClingCallbacks::DeclDeserialized(const clang::Decl* D) {
