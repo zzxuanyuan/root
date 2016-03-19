@@ -39,7 +39,7 @@ private:
    TString       fDefaultPrompt;      // default prompt: "root [%d] "
    char          fPrompt[64];         // interpreter prompt
    Bool_t        fInterrupt;          // if true macro execution will be stopped
-   Bool_t        fCaughtException;    // TRint just caught an exception or signal
+   Int_t         fCaughtSignal;       // TRint just caught a signal
    TFileHandler *fInputHandler;       // terminal input handler
 
    TRint(const TRint&);               // not implemented
@@ -63,6 +63,8 @@ public:
    virtual void        Terminate(int status);
            void        Interrupt() { fInterrupt = kTRUE; }
    virtual Int_t       TabCompletionHook(char *buf, int *pLoc, std::ostream& out);
+
+   TFileHandler       *GetInputHandler() { return fInputHandler; }
 
    ClassDef(TRint,0);  //ROOT Interactive Application Interface
 };

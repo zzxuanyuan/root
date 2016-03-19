@@ -115,8 +115,11 @@ SYSTEMDICTH   = -DSYSTEM_TYPE_unix $(SYSTEMDH)
 SYSTEML       = $(UNIXL)
 SYSTEMO       = $(UNIXO)
 SYSTEMDO      = $(UNIXDO)
-endif
-endif
+ifeq ($(PLATFORM),macosx)
+CORELIBEXTRA += -F /System/Library/PrivateFrameworks -framework CoreSymbolication
+endif # macos
+endif # not win32gcc
+endif # not win32
 
 ifeq ($(BUILDCOCOA),yes)
 MODULES += core/macosx
@@ -224,6 +227,7 @@ MODULES      += graf2d/gviz
 endif
 ifeq ($(BUILDPYTHON),yes)
 MODULES      += bindings/pyroot
+MODULES      += main/python
 endif
 ifeq ($(BUILDRUBY),yes)
 MODULES      += bindings/ruby
@@ -328,14 +332,15 @@ MODULES      += core/unix core/winnt graf2d/x11 graf2d/x11ttf \
                 graf2d/qt gui/qtroot gui/qtgsi net/netx net/netxng net/alien \
                 proof/proofd proof/proofx proof/pq2 graf3d/x3d net/davix \
                 sql/oracle io/xmlparser math/mathmore \
-                tmva/tmva tmva/tmvagui math/genetic io/hdfs graf2d/fitsio roofit/roofitcore \
+                tmva/tmva tmva/tmvagui math/genetic io/hdfs graf2d/fitsio \
+                roofit/roofitcore \
                 roofit/roofit roofit/roostats roofit/histfactory \
                 math/minuit2 net/monalisa math/fftw sql/odbc math/unuran \
                 geom/geocad geom/gdml graf3d/eve net/glite misc/memstat \
                 math/genvector net/bonjour graf3d/gviz3d graf2d/gviz \
                 proof/proofbench proof/afdsmgrd graf2d/ios \
                 graf2d/quartz graf2d/cocoa core/macosx math/vc math/vdt \
-                net/http  bindings/r
+                net/http bindings/r main/python
 MODULES      := $(sort $(MODULES))   # removes duplicates
 endif
 
@@ -546,6 +551,9 @@ endif
 ifeq ($(BUILDCOCOA),yes)
 STATICEXTRALIBS += -framework Cocoa -framework OpenGL
 endif
+ifeq ($(PLATFORM),macosx)
+STATICEXTRALIBS += -F /System/Library/PrivateFrameworks -framework CoreSymbolication
+endif
 
 ##### libCore #####
 
@@ -589,9 +597,16 @@ MAINLIBS      =
 endif
 
 ##### all #####
+ALLHDRS :=
+ifeq ($(CXXMODULES),yes)
+# Copy the modulemap in $ROOTSYS/include first.
+ALLHDRS  := include/module.modulemap
+ROOT_CXXMODULES_FLAGS = -fmodules -fmodule-map-file=$(ROOT_OBJDIR)/include/module.modulemap -fmodules-cache-path=$(ROOT_OBJDIR)/include/pcms/
+CXXFLAGS += $(ROOT_CXXMODULES_FLAGS)
+CFLAGS   += $(ROOT_CXXMODULES_FLAGS)
+endif
 
-# Copy the modulemap in the right place first.
-ALLHDRS      := include/module.modulemap
+
 ALLLIBS      := $(CORELIB)
 ALLMAPS      := $(COREMAP)
 ALLEXECS     :=
@@ -803,13 +818,15 @@ endif
 $(COMPILEDATA): $(ROOT_SRCDIR)/config/Makefile.$(ARCH) config/Makefile.comp Makefile \
                 $(MAKECOMPDATA) $(wildcard MyRules.mk) $(wildcard MyConfig.mk) $(wildcard MyModules.mk)
 	@$(MAKECOMPDATA) $(COMPILEDATA) "$(CXX)" "$(OPTFLAGS)" "$(DEBUGFLAGS)" \
-	   "$(filter-out -fmodules,$(CXXFLAGS))" "$(SOFLAGS)" "$(LDFLAGS)" "$(SOEXT)" "$(SYSLIBS)" \
+	   "$(CXXFLAGS)" "$(SOFLAGS)" "$(LDFLAGS)" "$(SOEXT)" "$(SYSLIBS)" \
 	   "$(LIBDIR)" "$(BOOTLIBS)" "$(RINTLIBS)" "$(INCDIR)" \
 	   "$(MAKESHAREDLIB)" "$(MAKEEXE)" "$(ARCH)" "$(ROOTBUILD)" \
 	   "$(EXPLICITLINK)"
 
+ifeq ($(CXXMODULES),yes)
 include/module.modulemap:    $(ROOT_SRCDIR)/build/unix/module.modulemap
 	cp $< $@
+endif
 
 # We rebuild GITCOMMITH only when we would re-link libCore anyway.
 # Thus it depends on all dependencies of libCore (minus TROOT.o
@@ -1081,7 +1098,7 @@ maintainer-clean:: distclean
 	@rm -rf bin lib include htmldoc system.rootrc config/Makefile.config \
 	   config/Makefile.comp $(ROOTRC) etc/system.rootauthrc \
 	   etc/system.rootdaemonrc etc/root.mimes etc/daemons/rootd.rc.d \
-	   etc/daemons/rootd.xinetd etc/daemons/proofd.rc.d \
+	   etc/daemons/rootd.xinetd etc/daemons/proofd.rc.d etc/cling \
 	   etc/daemons/proofd.xinetd main/src/proofserv.sh main/src/roots.sh \
 	   macros/html.C \
 	   build/misc/root-help.el build-arch-stamp build-indep-stamp \
@@ -1114,9 +1131,15 @@ changelog:
 
 releasenotes:
 	@$(MAKERELNOTES)
+ROOTCLING_CXXFLAGS := $(CXXFLAGS)
+# rootcling doesn't know what to do with these flags.
+# FIXME: Disable until until somebody teaches it.
+ifeq ($(CXXMODULES),yes)
+ROOTCLING_CXXFLAGS := $(filter-out $(ROOT_CXXMODULES_FLAGS),$(CXXFLAGS))
+endif
 
 $(ROOTPCH): $(MAKEPCH) $(ROOTCLINGSTAGE1DEP) $(ALLHDRS) $(CLINGETCPCH) $(ORDER_) $(ALLLIBS)
-	@$(MAKEPCHINPUT) $(ROOT_SRCDIR) "$(MODULES)" $(CLINGETCPCH) -- $(CXXFLAGS)
+	@$(MAKEPCHINPUT) $(ROOT_SRCDIR) "$(MODULES)" $(CLINGETCPCH) -- $(ROOTCLING_CXXFLAGS)
 	@$(MAKEPCH) $@
 
 $(MAKEPCH): $(ROOT_SRCDIR)/$(MAKEPCH)
@@ -1223,7 +1246,7 @@ install: all
 	   echo "Installing GDML conversion scripts in $(DESTDIR)$(LIBDIR)"; \
 	   $(INSTALLDATA) $(ROOT_SRCDIR)/geom/gdml/*.py $(DESTDIR)$(LIBDIR); \
 	   (cd $(DESTDIR)$(TUTDIR); \
-	      LD_LIBRARY_PATH=$(DESTDIR)$(LIBDIR):$$LD_LIBRARY_PATH && ! $(DESTDIR)$(BINDIR)/root -l -b -q -n -x hsimple.C); \
+	      ! LD_LIBRARY_PATH=$(DESTDIR)$(LIBDIR):$$LD_LIBRARY_PATH $(DESTDIR)$(BINDIR)/root -l -b -q -n -x hsimple.C); \
 	fi
 
 uninstall:
@@ -1439,6 +1462,7 @@ showbuild:
 	@echo "PYTHONLIBDIR       = $(PYTHONLIBDIR)"
 	@echo "PYTHONLIB          = $(PYTHONLIB)"
 	@echo "PYTHONINCDIR       = $(PYTHONINCDIR)"
+	@echo "PYTHONEXE          = $(PYTHONEXE)"
 	@echo "RUBYLIBDIR         = $(RUBYLIBDIR)"
 	@echo "RUBYLIB            = $(RUBYLIB)"
 	@echo "RUBYINCDIR         = $(RUBYINCDIR)"

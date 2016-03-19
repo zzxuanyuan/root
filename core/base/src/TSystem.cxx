@@ -319,7 +319,7 @@ void TSystem::NotifyApplicationCreated()
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Beep for duration milliseconds with a tone of frequency freq.
-/// Defaults to printing the '\a' character to stdout.
+/// Defaults to printing the `\a` character to stdout.
 /// If freq or duration is <0 respectively, use default value.
 /// If setDefault is set, only set the frequency and duration as
 /// new defaults, but don't beep.
@@ -1014,7 +1014,8 @@ const char *TSystem::DirName(const char *pathname)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Convert from a Unix pathname to a local pathname. E.g. from /user/root to \user\root.
+/// Convert from a Unix pathname to a local pathname. E.g. from `/user/root` to
+/// `\user\root`.
 
 const char *TSystem::UnixPathName(const char *name)
 {
@@ -2491,7 +2492,12 @@ static void R__WriteDependencyFile(const TString &build_loc, const TString &depf
 #else
    TString touch = "echo > "; touch += "\"" + depfilename + "\"";
 #endif
-   TString builddep = "rmkdepend \"-f";
+#ifdef ROOTBINDIR
+   TString builddep = ROOTBINDIR;
+#else
+   TString builddep = TString(gRootDir) + "/bin";
+#endif
+   builddep += "/rmkdepend \"-f";
    builddep += depfilename;
    builddep += "\" -o_" + extension + "." + gSystem->GetSoExt() + " ";
    if (build_loc.BeginsWith(gSystem->WorkingDirectory())) {
@@ -2671,7 +2677,7 @@ static void R__WriteDependencyFile(const TString &build_loc, const TString &depf
 /// We allow them to type:
 /// ~~~ {.cpp}
 ///  .X myfunc.C++(arg1,arg2)
-///  ~~~
+/// ~~~
 /// or
 /// ~~~ {.cpp}
 ///  .X myfunc.C+(arg1,arg2)
@@ -3837,7 +3843,7 @@ void TSystem::SetMakeExe(const char *directives)
 /// the use of ';' to separate several instructions. However, shell specific
 /// construct should be avoided. In particular this description can contain
 /// environment variables, like $ROOTSYS (or %ROOTSYS% on windows).
-///  ~~~ {.cpp}
+/// ~~~ {.cpp}
 /// Five special variables will be expanded before execution:
 ///   Variable name       Expands to
 ///   -------------       ----------
@@ -3854,7 +3860,7 @@ void TSystem::SetMakeExe(const char *directives)
 ///                       set fFlagsDebug and fFlagsOpt
 /// ~~~
 /// e.g.:
-///  ~~~ {.cpp}
+/// ~~~ {.cpp}
 /// gSystem->SetMakeSharedLib(
 /// "KCC -n32 --strict $IncludePath -K0 \$Opt $SourceFile
 ///  --no_exceptions --signed_chars --display_error_number
@@ -3875,7 +3881,7 @@ void TSystem::SetMakeExe(const char *directives)
 ///  -D_WINDOWS $IncludePath $SourceFile
 ///  /link -PDB:NONE /NODEFAULTLIB /INCREMENTAL:NO /RELEASE /NOLOGO
 ///  $LinkedLibs -entry:_DllMainCRTStartup@12 -dll /out:$SharedLib")
-///  ~~~
+/// ~~~
 
 void TSystem::SetMakeSharedLib(const char *directives)
 {
@@ -3911,15 +3917,15 @@ void TSystem::AddLinkedLibs(const char *linkedLib)
 /// the directives given to SetMakeSharedLib() and SetMakeExe(), e.g.:
 /// ~~~ {.cpp}
 ///    gSystem->SetInclude("-I$ROOTSYS/include -Imydirectory/include");
-///  ~~~
+/// ~~~
 /// the default value of IncludePath on Unix is:
-///  ~~~ {.cpp}
+/// ~~~ {.cpp}
 ///    "-I$ROOTSYS/include "
-///  ~~~
+/// ~~~
 /// and on Windows:
-///  ~~~ {.cpp}
+/// ~~~ {.cpp}
 ///    "/I%ROOTSYS%/include "
-///  ~~~
+/// ~~~
 
 void TSystem::SetIncludePath(const char *includePath)
 {
@@ -3948,8 +3954,11 @@ void  TSystem::SetLinkedLibs(const char *linkedLibs)
 /// the end of the linkdef file used to created the ACLiC dictionary.
 /// This effectively enable the full customization of the creation
 /// of the dictionary.  It should be noted that the file is intended
-/// as a linkdef 'fragment', so usually you would not list the
-/// typical '#pragma link off ....".
+/// as a linkdef `fragment`, so usually you would not list the
+/// typical:
+/// ~~~ {.cpp}
+///   #pragma link off ....
+/// ~~~
 
 void  TSystem::SetLinkdefSuffix(const char *suffix)
 {
@@ -3975,9 +3984,9 @@ void TSystem::SetObjExt(const char *ObjExt)
 
 ////////////////////////////////////////////////////////////////////////////////
 /// This method split a filename of the form:
-///  ~~~ {.cpp}
+/// ~~~ {.cpp}
 ///   [path/]macro.C[+|++[k|f|g|O|c|s|d|v|-]][(args)].
-///  ~~~
+/// ~~~
 /// It stores the ACliC mode [+|++[options]] in 'mode',
 /// the arguments (including parenthesis) in arg
 /// and the I/O indirection in io

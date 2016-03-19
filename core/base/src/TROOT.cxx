@@ -267,11 +267,13 @@ Bool_t TROOT::fgRootInit = kFALSE;
 Bool_t TROOT::fgMemCheck = kFALSE;
 
 static void at_exit_of_TROOT() {
-   gROOT->~TROOT();
+   if (ROOT::Internal::gROOTLocal)
+      ROOT::Internal::gROOTLocal->~TROOT();
 }
 
 // This local static object initializes the ROOT system
 namespace ROOT {
+namespace Internal {
    class TROOTAllocator {
       // Simple wrapper to separate, time-wise, the call to the
       // TROOT destructor and the actual free-ing of the memory.
@@ -307,8 +309,9 @@ namespace ROOT {
       char fHolder[sizeof(TROOT)];
    public:
       TROOTAllocator() {
-         new ( &(fHolder[0]) ) TROOT("root", "The ROOT of EVERYTHING");
+         new(&(fHolder[0])) TROOT("root", "The ROOT of EVERYTHING");
       }
+
       ~TROOTAllocator() {
          if (gROOTLocal) {
             gROOTLocal->~TROOT();
@@ -344,12 +347,14 @@ namespace ROOT {
    // code).
 
    extern TROOT *gROOTLocal;
+
    TROOT *GetROOT1() {
       if (gROOTLocal)
          return gROOTLocal;
       static TROOTAllocator alloc;
       return gROOTLocal;
    }
+
    TROOT *GetROOT2() {
       static Bool_t initInterpreter = kFALSE;
       if (!initInterpreter) {
@@ -361,17 +366,98 @@ namespace ROOT {
       return gROOTLocal;
    }
    typedef TROOT *(*GetROOTFun_t)();
+
    static GetROOTFun_t gGetROOT = &GetROOT1;
-   TROOT *GetROOT() {
-      return (*gGetROOT)();
+
+   static Func_t GetSymInLibThread(const char *funcname)
+   {
+      const static bool loadSuccess = 0 <= gSystem->Load("libThread");
+      if (loadSuccess) {
+         if (auto sym = gSystem->DynFindSymbol(nullptr, funcname)) {
+            return sym;
+         } else {
+            Error("GetSymInLibThread", "Cannot get symbol %s.", funcname);
+         }
+      }
+      return nullptr;
    }
+
+} // end of Internal sub namespace
+// back to ROOT namespace
+
+   TROOT *GetROOT() {
+      return (*Internal::gGetROOT)();
+   }
+
    TString &GetMacroPath() {
       static TString macroPath;
       return macroPath;
    }
+
+   ////////////////////////////////////////////////////////////////////////////////
+   /// Enables the global mutex to make ROOT thread safe/aware.
+   void EnableThreadSafety()
+   {
+      static void (*sym)() = (void(*)())Internal::GetSymInLibThread("ROOT_TThread_Initialize");
+      if (sym)
+         sym();
+   }
+
+   ////////////////////////////////////////////////////////////////////////////////
+   /// Globally enables the implicit multi-threading in ROOT, activating the
+   /// parallel execution of those methods in ROOT that provide an internal
+   /// parallelisation.
+   /// The 'numthreads' parameter allows to control the number of threads to
+   /// be used by the implicit multi-threading. However, this parameter is just
+   /// a hint for ROOT, which will try to satisfy the request if the execution
+   /// scenario allows it. For example, if ROOT is configured to use an external
+   /// scheduler, setting a value for 'numthreads' might not have any effect.
+   /// @param[in] numthreads Number of threads to use. If not specified or
+   ///                       set to zero, the number of threads is automatically
+   ///                       decided by the implementation. Any other value is
+   ///                       used as a hint.
+   void EnableImplicitMT(UInt_t numthreads)
+   {
+#ifdef R__USE_IMT
+      static void (*sym)(UInt_t) = (void(*)(UInt_t))Internal::GetSymInLibThread("ROOT_TImplicitMT_EnableImplicitMT");
+      if (sym)
+         sym(numthreads);
+#else
+      ::Warning("EnableImplicitMT", "Cannot enable implicit multi-threading with %d threads, please build ROOT with -Dimt=ON", numthreads);
+#endif
+   }
+
+   ////////////////////////////////////////////////////////////////////////////////
+   /// Disables the implicit multi-threading in ROOT.
+   void DisableImplicitMT()
+   {
+#ifdef R__USE_IMT
+      static void (*sym)() = (void(*)())Internal::GetSymInLibThread("ROOT_TImplicitMT_DisableImplicitMT");
+      if (sym)
+         sym();
+#else
+      ::Warning("DisableImplicitMT", "Cannot disable implicit multi-threading, please build ROOT with -Dimt=ON");
+#endif
+   }
+
+   ////////////////////////////////////////////////////////////////////////////////
+   /// Returns true if the implicit multi-threading in ROOT is enabled.
+   Bool_t IsImplicitMTEnabled()
+   {
+#ifdef R__USE_IMT
+      static Bool_t (*sym)() = (Bool_t(*)())Internal::GetSymInLibThread("ROOT_TImplicitMT_IsImplicitMTEnabled");
+      if (sym)
+         return sym();
+      else
+         return kFALSE;
+#else
+      return kFALSE;
+#endif
+   }
+
 }
 
-TROOT *ROOT::gROOTLocal = ROOT::GetROOT();
+TROOT *ROOT::Internal::gROOTLocal = ROOT::GetROOT();
 
 // Global debug flag (set to > 0 to get debug output).
 // Can be set either via the interpreter (gDebug is exported to CINT),
@@ -431,14 +517,14 @@ TROOT::TROOT(const char *name, const char *title, VoidFuncPtr_t *initfunc)
      fProofs(0),fClipboard(0),fDataSets(0),fUUIDs(0),fRootFolder(0),fBrowsables(0),
      fPluginManager(0)
 {
-   if (fgRootInit || ROOT::gROOTLocal) {
+   if (fgRootInit || ROOT::Internal::gROOTLocal) {
       //Warning("TROOT", "only one instance of TROOT allowed");
       return;
    }
 
    R__LOCKGUARD2(gROOTMutex);
 
-   ROOT::gROOTLocal = this;
+   ROOT::Internal::gROOTLocal = this;
    gDirectory = 0;
 
    // initialize gClassTable is not already done
@@ -523,6 +609,7 @@ TROOT::TROOT(const char *name, const char *title, VoidFuncPtr_t *initfunc)
    fProofs      = new TList; fProofs->SetName("Proofs");
    fClipboard   = new TList; fClipboard->SetName("Clipboard");
    fDataSets    = new TList; fDataSets->SetName("DataSets");
+   fTypes       = new TListOfTypes;
 
    TProcessID::AddProcessID();
    fUUIDs = new TProcessUUID();
@@ -617,7 +704,7 @@ TROOT::TROOT(const char *name, const char *title, VoidFuncPtr_t *initfunc)
 
    atexit(CleanUpROOTAtExit);
 
-   ROOT::gGetROOT = &ROOT::GetROOT2;
+   ROOT::Internal::gGetROOT = &ROOT::Internal::GetROOT2;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -626,10 +713,12 @@ TROOT::TROOT(const char *name, const char *title, VoidFuncPtr_t *initfunc)
 
 TROOT::~TROOT()
 {
-   if (ROOT::gROOTLocal == this) {
+   using namespace ROOT::Internal;
+
+   if (gROOTLocal == this) {
 
       // If the interpreter has not yet been initialized, don't bother
-      ROOT::gGetROOT = &ROOT::GetROOT1;
+      gGetROOT = &GetROOT1;
 
       // Mark the object as invalid, so that we can veto some actions
       // (like autoloading) while we are in the destructor.
@@ -738,7 +827,7 @@ TROOT::~TROOT()
       // Prints memory stats
       TStorage::PrintStatistics();
 
-      ROOT::gROOTLocal = 0;
+      gROOTLocal = 0;
       fgRootInit = kFALSE;
    }
 }
@@ -836,6 +925,9 @@ void TROOT::CloseFiles()
    if (fFiles && fFiles->First()) {
       R__ListSlowClose(static_cast<TList*>(fFiles));
    }
+   // and Close TROOT itself.
+   Close();
+   // Now sockets.
    if (fSockets && fSockets->First()) {
       if (0==fCleanups->FindObject(fSockets) ) {
          fCleanups->Add(fSockets);
@@ -1165,7 +1257,7 @@ TClass *TROOT::GetClass(const char *name, Bool_t load, Bool_t silent) const
 /// Return pointer to class from its name. Obsolete, use TClass::GetClass directly
 /// See TClass::GetClass
 
-TClass *TROOT::GetClass(const type_info& typeinfo, Bool_t load, Bool_t silent) const
+TClass *TROOT::GetClass(const std::type_info& typeinfo, Bool_t load, Bool_t silent) const
 {
    return TClass::GetClass(typeinfo,load,silent);
 }
@@ -1493,12 +1585,6 @@ TCollection *TROOT::GetListOfTypes(Bool_t /* load */)
    if (!fInterpreter)
       Fatal("GetListOfTypes", "fInterpreter not initialized");
 
-   if (!fTypes) {
-      R__LOCKGUARD2(gROOTMutex);
-
-      if (!fTypes) fTypes = new TListOfTypes;
-   }
-
    return fTypes;
 }
 
@@ -1659,16 +1745,8 @@ void TROOT::InitSystem()
 
 void TROOT::InitThreads()
 {
-   if (gEnv->GetValue("Root.UseThreads", 0)) {
-      char *path;
-      if ((path = gSystem->DynamicPathName("libThread", kTRUE))) {
-         delete [] path;
-         TInterpreter::EErrorCode code = TInterpreter::kNoError;
-         fInterpreter->Calc("TThread::Initialize();", &code);
-         if (code != TInterpreter::kNoError) {
-            Error("InitThreads","Thread mechanism not initialization properly.");
-         }
-      }
+   if (gEnv->GetValue("Root.UseThreads", 0) || gEnv->GetValue("Root.EnableThreadSafety", 0)) {
+      ROOT::EnableThreadSafety();
    }
 }
 
@@ -2150,7 +2228,9 @@ void TROOT::RefreshBrowsers()
 
 static void CallCloseFiles()
 {
-   if (TROOT::Initialized() && ROOT::gROOTLocal) gROOT->CloseFiles();
+   if (TROOT::Initialized() && ROOT::Internal::gROOTLocal) {
+      gROOT->CloseFiles();
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

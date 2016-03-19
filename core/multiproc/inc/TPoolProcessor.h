@@ -70,26 +70,18 @@ void DetachRes(T res)
 template<class F>
 class TPoolProcessor : public TMPWorker {
 public:
-   TPoolProcessor(F procFunc, const std::vector<std::string>& fileNames, const std::string& treeName, unsigned nWorkers, ULong64_t maxEntries) :
-      TMPWorker(), fProcFunc(procFunc),
-      fFileNames(fileNames), fTreeName(treeName), fTree(nullptr),
-      fNWorkers(nWorkers), fMaxNEntries(maxEntries),
-      fProcessedEntries(0), fReducedResult(), fCanReduce(false)
-   {}
-   TPoolProcessor(F procFunc, TTree *tree, unsigned nWorkers, ULong64_t maxEntries) :
-      TMPWorker(), fProcFunc(procFunc),
-      fFileNames(), fTreeName(), fTree(tree),
-      fNWorkers(nWorkers), fMaxNEntries(maxEntries),
-      fProcessedEntries(0), fReducedResult(), fCanReduce(false)
-   {}
+   TPoolProcessor(F procFunc, const std::vector<std::string>& fileNames, const std::string& treeName, unsigned nWorkers, ULong64_t maxEntries);
+   TPoolProcessor(F procFunc, TTree *tree, unsigned nWorkers, ULong64_t maxEntries);
    ~TPoolProcessor() {}
 
    void HandleInput(MPCodeBufPair& msg); ///< Execute instructions received from a TPool client
+   void Init(int fd, unsigned workerN);
 
 private:
    void Process(unsigned code, MPCodeBufPair& msg);
    TFile *OpenFile(const std::string& fileName);
    TTree *RetrieveTree(TFile *fp);
+   ULong64_t EvalMaxEntries(ULong64_t maxEntries);
 
    F fProcFunc; ///< the function to be executed
    std::vector<std::string> fFileNames; ///< the files to be processed by all workers
@@ -101,6 +93,23 @@ private:
    typename std::result_of<F(std::reference_wrapper<TTreeReader>)>::type fReducedResult; ///< the results of the executions of fProcFunc merged together
    bool fCanReduce; ///< true if fReducedResult can be reduced with a new result, false until we have produced one result
 };
+
+
+template<class F>
+TPoolProcessor<F>::TPoolProcessor(F procFunc, const std::vector<std::string>& fileNames, const std::string& treeName, unsigned nWorkers, ULong64_t maxEntries) : TMPWorker(), fProcFunc(procFunc),
+   fFileNames(fileNames), fTreeName(treeName), fTree(nullptr),
+   fNWorkers(nWorkers), fMaxNEntries(maxEntries),
+   fProcessedEntries(0), fReducedResult(), fCanReduce(false)
+{}
+
+
+template<class F>
+TPoolProcessor<F>::TPoolProcessor(F procFunc, TTree *tree, unsigned nWorkers, ULong64_t maxEntries) :
+   TMPWorker(), fProcFunc(procFunc),
+   fFileNames(), fTreeName(), fTree(tree),
+   fNWorkers(nWorkers), fMaxNEntries(maxEntries),
+   fProcessedEntries(0), fReducedResult(), fCanReduce(false)
+{}
 
 
 template<class F>
@@ -118,10 +127,18 @@ void TPoolProcessor<F>::HandleInput(MPCodeBufPair& msg)
       MPSend(GetSocket(), PoolCode::kProcResult, fReducedResult);
    } else {
       //unknown code received
-      std::string reply = "S" + std::to_string(GetPid());
+      std::string reply = "S" + std::to_string(GetNWorker());
       reply += ": unknown code received: " + std::to_string(code);
       MPSend(GetSocket(), MPCode::kError, reply.data());
    }
+}
+
+
+template<class F>
+void TPoolProcessor<F>::Init(int fd, unsigned workerN) {
+   TMPWorker::Init(fd, workerN);
+
+   fMaxNEntries = EvalMaxEntries(fMaxNEntries);
 }
 
 
@@ -133,6 +150,11 @@ void TPoolProcessor<F>::Process(unsigned code, MPCodeBufPair& msg)
    unsigned fileN = 0;
    unsigned nProcessed = 0;
    if (code == PoolCode::kProcRange || code == PoolCode::kProcTree) {
+      if (code == PoolCode::kProcTree && !fTree) {
+         // This must be defined
+         std::cerr << "[S]: Process:kProcTree fTree undefined!\n";
+         return;
+      }
       //retrieve the total number of entries ranges processed so far by TPool
       nProcessed = ReadBuffer<unsigned>(msg.second.get());
       //evaluate the file and the entries range to process
@@ -144,9 +166,15 @@ void TPoolProcessor<F>::Process(unsigned code, MPCodeBufPair& msg)
 
    std::unique_ptr<TFile> fp;
    TTree *tree = nullptr;
-   if (code != PoolCode::kProcTree) {
+   if (code != PoolCode::kProcTree ||
+      (code == PoolCode::kProcTree && fTree->GetCurrentFile())) {
       //open file
-      fp.reset(OpenFile(fFileNames[fileN]));
+     if (code == PoolCode::kProcTree && fTree->GetCurrentFile()) {
+         // Single tree from file: we need to reopen, because file descriptor gets invalidated across Fork
+         fp.reset(OpenFile(fTree->GetCurrentFile()->GetName()));
+      } else {
+         fp.reset(OpenFile(fFileNames[fileN]));
+      }
       if (fp == nullptr) {
          //errors are handled inside OpenFile
          return;
@@ -160,9 +188,9 @@ void TPoolProcessor<F>::Process(unsigned code, MPCodeBufPair& msg)
          return;
       }
    } else {
+      // Tree in memory: OK
       tree = fTree;
    }
-   
 
    //create entries range
    Long64_t start = 0;
@@ -194,7 +222,7 @@ void TPoolProcessor<F>::Process(unsigned code, MPCodeBufPair& msg)
    //Set first entry to start-1 so that the next call to TTreeReader::Next() sets the entry to the right value
    TTreeReader::EEntryStatus status = reader.SetEntriesRange(start-1, finish);
    if(status != TTreeReader::kEntryValid) {
-      std::string reply = "S" + std::to_string(GetPid());
+      std::string reply = "S" + std::to_string(GetNWorker());
       reply += ": could not set TTreeReader to range " + std::to_string(start) + " " + std::to_string(finish);
       MPSend(GetSocket(), PoolCode::kProcError, reply.data());
       return;
@@ -231,7 +259,7 @@ TFile *TPoolProcessor<F>::OpenFile(const std::string& fileName)
 
    TFile *fp = TFile::Open(fileName.c_str());
    if (fp == nullptr || fp->IsZombie()) {
-      std::string reply = "S" + std::to_string(GetPid());
+      std::string reply = "S" + std::to_string(GetNWorker());
       reply.append(": could not open file ");
       reply.append(fileName);
       MPSend(GetSocket(), PoolCode::kProcError, reply.data());
@@ -262,7 +290,7 @@ TTree *TPoolProcessor<F>::RetrieveTree(TFile *fp)
       tree = static_cast<TTree*>(fp->Get(fTreeName.c_str()));
    }
    if (tree == nullptr) {
-      std::string reply = "S" + std::to_string(GetPid());
+      std::string reply = "S" + std::to_string(GetNWorker());
       std::stringstream ss;
       ss << ": cannot find tree with name " << fTreeName << " in file " << fp->GetName();
       reply.append(ss.str());
@@ -273,5 +301,17 @@ TTree *TPoolProcessor<F>::RetrieveTree(TFile *fp)
    return tree;
 }
 
+
+template<class F>
+ULong64_t TPoolProcessor<F>::EvalMaxEntries(ULong64_t maxEntries)
+{
+   //e.g.: when dividing 10 entries between 3 workers, the first
+   //two will process 10/3 == 3 entries, the last one will process
+   //10 - 2*(10/3) == 4 entries.
+   if(GetNWorker() < fNWorkers-1)
+      return maxEntries/fNWorkers;
+   else
+      return maxEntries - (fNWorkers-1)*(maxEntries/fNWorkers);
+}
 
 #endif
