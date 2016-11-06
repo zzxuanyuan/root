@@ -1,0 +1,174 @@
+--------------------
+./configure
+Sun Nov  6 00:39:18 CDT 2016
+Checking for gcc...
+=== ztest32266.c ===
+extern int getchar();
+int hello() {return getchar();}
+===
+gcc -c ztest32266.c
+... using gcc
+
+Checking for obsessive-compulsive compiler options...
+=== ztest32266.c ===
+int foo() { return 0; }
+===
+gcc -c -msse4 -mpclmul ztest32266.c
+
+Checking for shared library support...
+=== ztest32266.c ===
+extern int getchar();
+int hello() {return getchar();}
+===
+gcc -w -c -msse4 -mpclmul -fPIC ztest32266.c
+gcc -shared -Wl,-soname,libcloudflare.so.1,--version-script,zlib.map -msse4 -mpclmul -fPIC -o ztest32266.so ztest32266.o
+Building shared library libcloudflare.so.1.2.8 with gcc.
+
+=== ztest32266.c ===
+#include <sys/types.h>
+off64_t dummy = 0;
+===
+gcc -c -msse4 -mpclmul -D_LARGEFILE64_SOURCE=1 ztest32266.c
+Checking for off64_t... Yes.
+Checking for fseeko... Yes.
+
+=== ztest32266.c ===
+#include <string.h>
+#include <errno.h>
+int main() { return strlen(strerror(errno)); }
+===
+gcc -msse4 -mpclmul -D_LARGEFILE64_SOURCE=1 -o ztest32266 ztest32266.c
+Checking for strerror... Yes.
+
+=== ztest32266.c ===
+#include <unistd.h>
+int main() { return 0; }
+===
+gcc -c -msse4 -mpclmul -D_LARGEFILE64_SOURCE=1 ztest32266.c
+Checking for unistd.h... Yes.
+
+=== ztest32266.c ===
+#include <stdarg.h>
+int main() { return 0; }
+===
+gcc -c -msse4 -mpclmul -D_LARGEFILE64_SOURCE=1 ztest32266.c
+Checking for stdarg.h... Yes.
+
+=== ztest32266.c ===
+#include <stdio.h>
+#include <stdarg.h>
+#include "zconf.h"
+int main()
+{
+#ifndef STDC
+  choke me
+#endif
+  return 0;
+}
+===
+gcc -c -msse4 -mpclmul -D_LARGEFILE64_SOURCE=1 ztest32266.c
+Checking whether to use vs[n]printf() or s[n]printf()... using vs[n]printf().
+
+=== ztest32266.c ===
+#include <stdio.h>
+#include <stdarg.h>
+int mytest(const char *fmt, ...)
+{
+  char buf[20];
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+  return 0;
+}
+int main()
+{
+  return (mytest("Hello%d\n", 1));
+}
+===
+gcc -msse4 -mpclmul -D_LARGEFILE64_SOURCE=1 -o ztest32266 ztest32266.c
+Checking for vsnprintf() in stdio.h... Yes.
+
+=== ztest32266.c ===
+#include <stdio.h>
+#include <stdarg.h>
+int mytest(const char *fmt, ...)
+{
+  int n;
+  char buf[20];
+  va_list ap;
+  va_start(ap, fmt);
+  n = vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+  return n;
+}
+int main()
+{
+  return (mytest("Hello%d\n", 1));
+}
+===
+gcc -c -msse4 -mpclmul -D_LARGEFILE64_SOURCE=1 ztest32266.c
+Checking for return value of vsnprintf()... Yes.
+
+=== ztest32266.c ===
+#define ZLIB_INTERNAL __attribute__((visibility ("hidden")))
+int ZLIB_INTERNAL foo;
+int main()
+{
+  return 0;
+}
+===
+gcc -c -msse4 -mpclmul -D_LARGEFILE64_SOURCE=1 ztest32266.c
+Checking for attribute(visibility) support... Yes.
+=== ztest32266.c ===
+void foo(void) {
+#ifndef __PCLMUL__
+    #error no pclmul
+#endif
+}
+===
+gcc -c -msse4 -mpclmul -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN ztest32266.c
+Checking for PCLMUL support ... Yes
+=== ztest32266.c ===
+void foo(void) {
+#ifndef __SSE4_2__
+    #error no sse4.2
+#endif
+}
+===
+gcc -DHAS_PCLMUL -msse4 -mpclmul -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN ztest32266.c -c ztest32266
+gcc: warning: ztest32266: linker input file unused because linking not done
+Checking for SSE4.2 support ... Yes
+
+ALL = static shared all64
+AR = ar
+ARFLAGS = rc
+CC = gcc
+CFLAGS = -DHAS_SSE42 -DHAS_PCLMUL -msse4 -mpclmul -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN
+CPP = gcc -E
+EXE =
+LDCONFIG = ldconfig
+LDFLAGS =
+LDSHARED = gcc -shared -Wl,-soname,libcloudflare.so.1,--version-script,zlib.map
+LDSHAREDLIBC = -lc
+OBJC = $(OBJZ) $(OBJG)
+PIC_OBJC = $(PIC_OBJZ) $(PIC_OBJG)
+RANLIB = ranlib
+SFLAGS = -DHAS_SSE42 -DHAS_PCLMUL -msse4 -mpclmul -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN
+SHAREDLIB = libcloudflare.so
+SHAREDLIBM = libcloudflare.so.1
+SHAREDLIBV = libcloudflare.so.1.2.8
+STATICLIB = libcloudflare.a
+TEST = all teststatic testshared test64
+VER = 1.2.8
+Z_U4 =
+exec_prefix = ${prefix}
+includedir = ${prefix}/include
+libdir = ${exec_prefix}/lib
+mandir = ${prefix}/share/man
+prefix = /usr/local
+sharedlibdir = ${libdir}
+uname = Linux
+--------------------
+
+

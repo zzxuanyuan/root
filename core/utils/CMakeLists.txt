@@ -26,13 +26,14 @@ ROOT_EXECUTABLE(rootcling src/LinkdefReader.cxx src/DictSelectionReader.cxx
                           $<TARGET_OBJECTS:Base>
                           $<TARGET_OBJECTS:Cont>
                           $<TARGET_OBJECTS:Lzma>
+                          $<TARGET_OBJECTS:Cloudflare>
                           $<TARGET_OBJECTS:Zip>
                           $<TARGET_OBJECTS:Meta>
                           $<TARGET_OBJECTS:TextInput>
                           ${macosx_objects}
                           ${unix_objects}
                           ${winnt_objects}
-                          LIBRARIES ${PCRE_LIBRARIES} ${LZMA_LIBRARIES} ${ZLIB_LIBRARY}
+                          LIBRARIES ${PCRE_LIBRARIES} ${LZMA_LIBRARIES} ${CLOUDFLARE_LIBRARIES} ${ZLIB_LIBRARY}
                                     ${CLING_LIBRARIES} ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT}
                                     ${corelinklibs})
 

@@ -15,6 +15,7 @@
 #include "zlib.h"
 #include "RConfigure.h"
 #include "ZipLZMA.h"
+#include "ZipCloudflare.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -287,12 +288,15 @@ struct bits_internal_state {
    and when R__zipMultipleAlgorithm is called with its last argument set to 0.
    R__ZipMode = 1 : ZLIB compression algorithm is used (default)
    R__ZipMode = 2 : LZMA compression algorithm is used
+   R__ZipMode = 4 : Cloudflare compression algorithm is used
    R__ZipMode = 0 or 3 : a very old compression algorithm is used
    (the very old algorithm is supported for backward compatibility)
    The LZMA algorithm requires the external XZ package be installed when linking
    is done. LZMA typically has significantly higher compression factors, but takes
    more CPU time and memory resources while compressing.
-*/
+   The Cloudflare algorithm requires the external XZ package be installed when linking
+   is done. Cloudflare typically has faster compression and decompression speed comparing
+   to normal zlib */
 int R__ZipMode = 1;
 
 /* ===========================================================================
@@ -566,6 +570,7 @@ void R__zipMultipleAlgorithm(int cxlevel, int *srcsize, char *src, int *tgtsize,
      /*                      1 = zlib */
      /*                      2 = lzma */
      /*                      3 = old */
+     /*                      4 = cloudflare */
 {
   int err;
   int method   = Z_DEFLATED;
@@ -582,6 +587,12 @@ void R__zipMultipleAlgorithm(int cxlevel, int *srcsize, char *src, int *tgtsize,
   // The LZMA compression algorithm from the XZ package
   if (compressionAlgorithm == 2) {
     R__zipLZMA(cxlevel, srcsize, src, tgtsize, tgt, irep);
+    return;
+  }
+
+  // The Cloudflare compression
+  if (compressionAlgorithm == 4) {
+    R__zipCloudflare(cxlevel, srcsize, src, tgtsize, tgt, irep);
     return;
   }
 

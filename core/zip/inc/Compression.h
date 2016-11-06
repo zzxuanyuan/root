@@ -34,6 +34,7 @@ namespace ROOT {
                                 kZLIB,
                                 kLZMA,
                                 kOldCompressionAlgo,
+				kCloudflare,
                                 // if adding new algorithm types,
                                 // keep this enum value last
                                 kUndefinedCompressionAlgorithm

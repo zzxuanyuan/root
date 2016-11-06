@@ -191,6 +191,41 @@ if(builtin_lzma)
   endif()
 endif()
 
+#---Check for Cloudflare-------------------------------------------------------------------
+if(NOT builtin_cloudflare)
+  message(STATUS "Looking for Cloudflare")
+  find_package(Cloudflare)
+  if(NOT CLOUDFLARE_FOUND)
+    if(fail-on-missing)
+      message(FATAL_ERROR "Cloudflare not found and it is required ('fail-on-missing' enabled)."
+                          "Alternatively, you can enable the option 'builtin_cloudflare' to build the Cloudflare library internally.")
+    else()
+      message(STATUS "Cloudflare not found. Switching on builtin_cloudflare option")
+      set(builtin_cloudflare ON CACHE BOOL "" FORCE)
+    endif()
+  endif()
+endif()
+if(builtin_cloudflare)
+  set(cloudflare_version 1.2.8)
+  message(STATUS "Building Cloudflare version ${cloudflare_version} included in ROOT itself")
+  if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+    set(CLOUDFLARE_CFLAGS "-msse4 -mpclmul -Wno-format-nonliteral")
+    set(CLOUDFLARE_LDFLAGS "-Qunused-arguments")
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL Intel)
+    set(CLOUDFLARE_CFLAGS "-msse4 -mpclmul -wd188 -wd181 -wd1292 -wd10006 -wd10156 -wd2259 -wd981 -wd128 -wd3179 -wd2102")
+  else()
+    set(CLOUDFLARE_CFLAGS "-msse4 -mpclmul -fPIC")
+  endif()
+  ExternalProject_Add(
+    CLOUDFLARE
+    URL ${CMAKE_SOURCE_DIR}/core/cloudflare/src/cloudflare.tar.gz
+    INSTALL_DIR ${CMAKE_BINARY_DIR}
+    CONFIGURE_COMMAND <SOURCE_DIR>/root_configure <SOURCE_DIR> <INSTALL_DIR> ${CMAKE_C_COMPILER} ${CMAKE_CXX_COMPILER} ${CLOUDFLARE_CFLAGS} ${CLOUDFLARE_LDFLAGS}
+    LOG_DOWNLOAD 1 LOG_CONFIGURE 1 LOG_BUILD 1 LOG_INSTALL 1 BUILD_IN_SOURCE 1)
+  set(CLOUDFLARE_LIBRARIES ${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}cloudflare${CMAKE_STATIC_LIBRARY_SUFFIX})
+  set(CLOUDFLARE_INCLUDE_DIR ${CMAKE_BINARY_DIR}/include)
+endif()
+
 
 #---Check for X11 which is mandatory lib on Unix--------------------------------------
 if(x11)
