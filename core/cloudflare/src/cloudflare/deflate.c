@@ -51,6 +51,7 @@
 
 #include "deflate.h"
 #include <immintrin.h>
+#include <stdio.h> //##
 
 const char deflate_copyright[] =
    " deflate 1.2.8 Copyright 1995-2013 Jean-loup Gailly and Mark Adler ";
@@ -631,6 +632,7 @@ int ZEXPORT deflate (strm, flush)
     z_streamp strm;
     int flush;
 {
+    fprintf(stdout, "in cloudflare deflate\n");//##
     int old_flush; /* value of flush param for previous deflate call */
     deflate_state *s;
 

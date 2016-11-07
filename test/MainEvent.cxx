@@ -108,6 +108,7 @@ int main(int argc, char **argv)
    Int_t read   = 0;
    Int_t arg4   = 1;
    Int_t arg5   = 600;     //default number of tracks per event
+   Int_t compAlg= 1;
    Int_t netf   = 0;
    Int_t punzip = 0;
 
@@ -116,6 +117,7 @@ int main(int argc, char **argv)
    if (argc > 3)  split  = atoi(argv[3]);
    if (argc > 4)  arg4   = atoi(argv[4]);
    if (argc > 5)  arg5   = atoi(argv[5]);
+   if (argc > 6)  compAlg= atoi(argv[6]);
    if (arg4 ==  0) { write = 0; hfill = 0; read = 1;}
    if (arg4 ==  1) { write = 1; hfill = 0;}
    if (arg4 ==  2) { write = 0; hfill = 0;}
@@ -195,6 +197,7 @@ int main(int argc, char **argv)
       } else
          hfile = new TFile("Event.root","RECREATE","TTree benchmark ROOT file");
       hfile->SetCompressionLevel(comp);
+      hfile->SetCompressionAlgorithm(compAlg);
 
      // Create histogram to show write_time in function of time
      Float_t curtime = -0.5;
