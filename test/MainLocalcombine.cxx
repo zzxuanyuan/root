@@ -12,7 +12,7 @@
 #include "TBranch.h"
 #include "TClonesArray.h"
 #include "TStopwatch.h"
-
+#include "TTreePerfStats.h"
 #include "Localcompression.h"
 
 using namespace std;
@@ -26,12 +26,14 @@ int main(int argc, char **argv)
    Int_t read   = 0;
    Int_t object  = 0;
    Int_t rac = 0;
+   Int_t step = 0;
 
    if (argc > 1)  nevent = atoi(argv[1]);
    if (argc > 2)  comp   = atoi(argv[2]);
    if (argc > 3)  read   = atoi(argv[3]);
    if (argc > 4)  object  = atoi(argv[4]);
    if (argc > 5)  rac = atoi(argv[5]);
+   if (argc > 6)  step = atoi(argv[6]);
 
    if (rac) gROOT->SetRandomAccessCompression(1);
    else gROOT->SetRandomAccessCompression(0);
@@ -45,6 +47,8 @@ int main(int argc, char **argv)
    TInt   *eventint   = 0;
    Int_t nsmall = 1000;
    Int_t nint = nsmall*100;
+
+   TTreePerfStats *ioperf = NULL;
 
    TStopwatch timer;
    timer.Start();
@@ -71,6 +75,7 @@ int main(int argc, char **argv)
       else
          hfile = new TFile("TCombineNOR.root");
       tree = (TTree*)hfile->Get("T");
+      ioperf = new TTreePerfStats("Stats Tree T", tree);
       if (object == 1) {
          branch = tree->GetBranch("EventSmall");
          branch->SetAddress(&eventsmall);
@@ -87,37 +92,25 @@ int main(int argc, char **argv)
       Int_t nentries = (Int_t)branch->GetEntries();
       nevent = TMath::Min(nevent,nentries); 
       printf("nentries=%d,nevent=%d\n",nentries,nevent);
-      if (read == 1) {  //read sequential
-         //by setting the read cache to -1 we set it to the AutoFlush value when writing
-         Int_t cachesize = -1;
-         tree->SetCacheSize(cachesize);
-         tree->SetCacheLearnEntries(1); //one entry is sufficient to learn
-         tree->SetCacheEntryRange(0,nevent);
-         for (ev = 0; ev < nevent; ev++) {
-            tree->LoadTree(ev);  //this call is required when using the cache
-            if (ev%printev == 0) {
-               tnew = timer.RealTime();
-               printf("event:%d, rtime=%f s\n",ev,tnew-told);
-               told=tnew;
-               timer.Continue();
-            }
-            nb += branch->GetEntry(ev);        //read branch in memory
+      //by setting the read cache to -1 we set it to the AutoFlush value when writing
+      Int_t cachesize = -1;
+      tree->SetCacheSize(cachesize);
+      tree->SetCacheLearnEntries(1); //one entry is sufficient to learn
+      tree->SetCacheEntryRange(0,nevent);
+      for (ev = 0; ev < nentries; ev+=step) {
+         tree->LoadTree(ev);  //this call is required when using the cache
+/*
+         if (ev%printev == 0) {
+            tnew = timer.RealTime();
+            printf("event:%d, rtime=%f s\n",ev,tnew-told);
+            told=tnew;
+            timer.Continue();
          }
-      } else {    //read random
-         Int_t distance = nentries/nevent;
-         Int_t cnt = 0;
-         for (ev = 0; ev < nentries; ev+=distance) {
-            tree->LoadTree(ev);
-            cnt++;
-            if (cnt%printev == 0) {
-               tnew = timer.RealTime();
-               printf("event:%d, rtime=%f s\n",ev,tnew-told);
-               told=tnew;
-               timer.Continue();
-            }
-            nb += branch->GetEntry(ev);
-         }
+*/
+         nb += branch->GetEntry(ev);        //read branch in memory
       }
+      ioperf->Print();
+      delete ioperf;
    } else {
 //  Write case
       if (rac)
