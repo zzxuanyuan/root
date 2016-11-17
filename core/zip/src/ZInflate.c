@@ -1141,7 +1141,7 @@ int R__unzip_header(int *srcsize, uch *src, int *tgtsize)
   return 0;
 }
 
-void R__unzip(int *srcsize, uch *src, int *tgtsize, uch *tgt, int *irep)
+void R__unzip(int *srcsize, uch *src, int *tgtsize, uch *tgt, int *irep, int cloudflare)
 {
   long isize;
   uch  *ibufptr,*obufptr;
@@ -1184,34 +1184,40 @@ void R__unzip(int *srcsize, uch *src, int *tgtsize, uch *tgt, int *irep)
 
   /* New zlib format */
   if (src[0] == 'Z' && src[1] == 'L') {
-    z_stream stream; /* decompression stream */
-    int err = 0;
+    if (!cloudflare) {
+      z_stream stream; /* decompression stream */
+      int err = 0;
 
-    stream.next_in   = (Bytef*)(&src[HDRSIZE]);
-    stream.avail_in  = (uInt)(*srcsize);
-    stream.next_out  = (Bytef*)tgt;
-    stream.avail_out = (uInt)(*tgtsize);
-    stream.zalloc    = (alloc_func)0;
-    stream.zfree     = (free_func)0;
-    stream.opaque    = (voidpf)0;
+      stream.next_in   = (Bytef*)(&src[HDRSIZE]);
+      stream.avail_in  = (uInt)(*srcsize);
+      stream.next_out  = (Bytef*)tgt;
+      stream.avail_out = (uInt)(*tgtsize);
+      stream.zalloc    = (alloc_func)0;
+      stream.zfree     = (free_func)0;
+      stream.opaque    = (voidpf)0;
 
-    err = inflateInit(&stream);
-    if (err != Z_OK) {
-      fprintf(stderr,"R__unzip: error %d in inflateInit (zlib)\n",err);
-      return;
-    }
+      err = inflateInit(&stream);
+      if (err != Z_OK) {
+        fprintf(stderr,"R__unzip: error %d in inflateInit (zlib)\n",err);
+        return;
+      }
 
-    err = inflate(&stream, Z_FINISH);
-    if (err != Z_STREAM_END) {
+      err = inflate(&stream, Z_FINISH);
+      if (err != Z_STREAM_END) {
+        inflateEnd(&stream);
+        fprintf(stderr,"R__unzip: error %d in inflate (zlib)\n",err);
+        return;
+      }
+
       inflateEnd(&stream);
-      fprintf(stderr,"R__unzip: error %d in inflate (zlib)\n",err);
+
+      *irep = stream.total_out;
       return;
     }
-
-    inflateEnd(&stream);
-
-    *irep = stream.total_out;
-    return;
+    else {
+      R__unzipCloudflare(srcsize, src, tgtsize, tgt, irep);
+      return;
+    }
   }
   else if (src[0] == 'X' && src[1] == 'Z') {
     R__unzipLZMA(srcsize, src, tgtsize, tgt, irep);

@@ -20,7 +20,7 @@ extern "C" void R__zipMultipleAlgorithm(int cxlevel, int *srcsize, char *src, in
 
 extern "C" void R__zip(int cxlevel, int *srcsize, char *src, int *tgtsize, char *tgt, int *irep);
 
-extern "C" void R__unzip(int *srcsize, unsigned char *src, int *tgtsize, unsigned char *tgt, int *irep);
+extern "C" void R__unzip(int *srcsize, unsigned char *src, int *tgtsize, unsigned char *tgt, int *irep, int cloudflare = 1);
 
 extern "C" int R__unzip_header(int *srcsize, unsigned char *src, int *tgtsize);
 

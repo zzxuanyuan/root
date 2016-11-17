@@ -86,6 +86,33 @@ void R__zipCloudflare(int cxlevel, int *srcsize, char *src, int *tgtsize, char *
 
 void R__unzipCloudflare(int *srcsize, unsigned char *src, int *tgtsize, unsigned char *tgt, int *irep)
 {
-}
+   z_stream stream; /* decompression stream */
+   int err = 0;
 
+   stream.next_in   = (Bytef*)(&src[HDRSIZE]);
+   stream.avail_in  = (uInt)(*srcsize);
+   stream.next_out  = (Bytef*)tgt;
+   stream.avail_out = (uInt)(*tgtsize);
+   stream.zalloc    = (alloc_func)0;
+   stream.zfree     = (free_func)0;
+   stream.opaque    = (voidpf)0;
+
+   err = inflateInit(&stream);
+   if (err != Z_OK) {
+      fprintf(stderr,"R__unzip: error %d in inflateInit (zlib)\n",err);
+      return;
+   }
+
+   err = inflate(&stream, Z_FINISH);
+   if (err != Z_STREAM_END) {
+      inflateEnd(&stream);
+      fprintf(stderr,"R__unzip: error %d in inflate (zlib)\n",err);
+      return;
+   }
+
+   inflateEnd(&stream);
+
+   *irep = stream.total_out;
+   return;
+}
 
