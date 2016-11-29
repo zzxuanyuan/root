@@ -463,6 +463,7 @@ Int_t TFileCacheRead::ReadBufferExtNormal(char *buf, Long64_t pos, Int_t len, In
             return -1;
          }
          fIsTransferred = kTRUE;
+         printf("In TFileCacheRead::ReadBufferExtNormal and fIsTransferred is kTrue\n");//##
       } else {
          // In any case, we'll start to request the chunks.
          // This implementation simply reads all the chunks in advance
@@ -522,12 +523,14 @@ Int_t TFileCacheRead::ReadBufferExtNormal(char *buf, Long64_t pos, Int_t len, In
 
       return retval;
    } else {
-
+      printf("1. In TFileCacheRead::ReadBufferExtNormal and loc = %d\n",loc);//##
       if (loc < 0)
          loc = (Int_t)TMath::BinarySearch(fNseek, fSeekSort, pos);
-
+      printf("2. In TFileCacheRead::ReadBufferExtNormal and loc = %d\n",loc);//##
+      printf("3. In TFileCacheRead::ReadBufferExtNormal and pos = %lld, fSeekSort[loc] = %lld\n", pos, fSeekSort[loc]);//##
       if (loc >= 0 && loc <fNseek && pos == fSeekSort[loc]) {
          if (buf) {
+            printf("there exists buf\n");//##
             memcpy(buf,&fBuffer[fSeekPos[loc]],len);
             fFile->SetOffset(pos+len);
          }

@@ -1128,9 +1128,12 @@ TBasket* TBranch::GetBasket(Int_t basketnumber)
       }
    }
 
+   printf("1.out:basket->GetSeekKey() = %lld and fBasketSeek[basketnumber] = %lld and basketnumber=%d and fBasketSeek[0]=%lld\n", basket->GetSeekKey(), fBasketSeek[basketnumber], basketnumber, fBasketSeek[0]);//##
    //now read basket
    Int_t badread = basket->ReadBasketBuffers(fBasketSeek[basketnumber],fBasketBytes[basketnumber],file);
+   printf("1.5 out:basket->GetSeekKey() = %lld and fBasketSeek[basketnumber] = %lld and basketnumber=%d and fBasketSeek[0]=%lld\n", basket->GetSeekKey(), fBasketSeek[basketnumber], basketnumber, fBasketSeek[0]);//##
    if (badread || basket->GetSeekKey() != fBasketSeek[basketnumber]) {
+      printf("in:basket->GetSeekKey() = %lld and fBasketSeek[basketnumber] = %lld and basketnumber=%d and fBasketSeek[0]=%lld\n", basket->GetSeekKey(), fBasketSeek[basketnumber], basketnumber, fBasketSeek[0]);//##
       nerrors++;
       if (nerrors > 10) return 0;
       if (nerrors == 10) {
@@ -1148,6 +1151,7 @@ TBasket* TBranch::GetBasket(Int_t basketnumber)
       Error("GetBasket","File: %s at byte:%lld, branch:%s, entry:%lld, badread=%d, nerrors=%d, basketnumber=%d",file->GetName(),basket->GetSeekKey(),GetName(),fReadEntry,badread,nerrors.load(),basketnumber);
       return 0;
    }
+   printf("2.out:basket->GetSeekKey() = %lld and fBasketSeek[basketnumber] = %lld and basketnumber=%d and fBasketSeek[0]=%lld\n", basket->GetSeekKey(), fBasketSeek[basketnumber], basketnumber, fBasketSeek[0]);//##
 
    ++fNBaskets;
    fBaskets.AddAt(basket,basketnumber);
