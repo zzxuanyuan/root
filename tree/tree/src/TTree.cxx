@@ -4384,32 +4384,107 @@ Int_t TTree::Fill()
    if (fBranchRef) {
       fBranchRef->Clear();
    }
-   for (Int_t i = 0; i < nb; ++i) {
-      // Loop over all branches, filling and accumulating bytes written and error counts.
-      TBranch* branch = (TBranch*) fBranches.UncheckedAt(i);
-      if (branch->TestBit(kDoNotProcess)) {
-         continue;
-      }
-      Int_t nwrite = branch->Fill();
-      if (nwrite < 0)  {
-         if (nerror < 2) {
-            Error("Fill", "Failed filling branch:%s.%s, nbytes=%d, entry=%lld\n"
-                  " This error is symptomatic of a Tree created as a memory-resident Tree\n"
-                  " Instead of doing:\n"
-                  "    TTree *T = new TTree(...)\n"
-                  "    TFile *f = new TFile(...)\n"
-                  " you should do:\n"
-                  "    TFile *f = new TFile(...)\n"
-                  "    TTree *T = new TTree(...)",
-                  GetName(), branch->GetName(), nwrite,fEntries+1);
-         } else {
-            Error("Fill", "Failed filling branch:%s.%s, nbytes=%d, entry=%lld", GetName(), branch->GetName(), nwrite,fEntries+1);
+
+   auto seqprocessing = [&]() {
+      TBranch* branch;
+      for (Int_t i = 0; i < nb; ++i) {
+         // Loop over all branches, filling and accumulating bytes written and error counts.
+         branch = (TBranch*) fBranches.UncheckedAt(i);
+         if (branch->TestBit(kDoNotProcess)) {
+            continue;
          }
-         ++nerror;
-      } else {
-         nbytes += nwrite;
+         Int_t nwrite = branch->Fill();
+         if (nwrite < 0)  {
+            if (nerror < 2) {
+               Error("Fill", "Failed filling branch:%s.%s, nbytes=%d, entry=%lld\n"
+                     " This error is symptomatic of a Tree created as a memory-resident Tree\n"
+                     " Instead of doing:\n"
+                     "    TTree *T = new TTree(...)\n"
+                     "    TFile *f = new TFile(...)\n"
+                     " you should do:\n"
+                     "    TFile *f = new TFile(...)\n"
+                     "    TTree *T = new TTree(...)",
+                     GetName(), branch->GetName(), nwrite,fEntries+1);
+            } else {
+               Error("Fill", "Failed filling branch:%s.%s, nbytes=%d, entry=%lld", GetName(), branch->GetName(), nwrite,fEntries+1);
+            }
+            ++nerror;
+         } else {
+            nbytes += nwrite;
+         }
+      }
+   };
+
+#ifdef R__USE_IMT
+   if (ROOT::IsImplicitMTEnabled() && fIMTEnabled) {
+      printf("imt processing\n");//##
+      if (fSortedBranches.empty()) InitializeSortedBranches();
+
+      // Enable this IMT use case (activate its locks)
+      ROOT::Internal::TParBranchProcessingRAII pbpRAII;
+
+      Int_t errnb = 0;
+      std::atomic<Int_t> pos(0);
+      std::atomic<Int_t> nbpar(0);
+      tbb::task_group g;
+
+      for (Int_t i = 0; i < nb; i++) {
+         g.run([&]() {
+            // The branch to process is obtained when the task starts to run.
+            // This way, since branches are sorted, we make sure that branches
+            // leading to big tasks are processed first. If we assigned the
+            // branch at task creation time, the scheduler would not necessarily
+            // respect our sorting.
+            Int_t j = pos.fetch_add(1);
+
+            Int_t nbtask = 0;
+            auto branch = fSortedBranches[j].second;
+
+            if (gDebug > 0) {
+               std::stringstream ss;
+               ss << std::this_thread::get_id();
+               Info("Fill", "[IMT] Thread %s", ss.str().c_str());
+               Info("Fill", "[IMT] Running task for branch #%d: %s", j, branch->GetName());
+            }
+
+            std::chrono::time_point<std::chrono::system_clock> start, end;
+
+            start = std::chrono::system_clock::now();
+            nbtask = branch->Fill();
+            end = std::chrono::system_clock::now();
+
+            Long64_t tasktime = (Long64_t)std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+            fSortedBranches[j].first += tasktime;
+
+            if (nbtask < 0) errnb = nbtask;
+            else            nbpar += nbtask;
+         });
+      }
+      g.wait();
+
+      if (errnb < 0) {
+         nb = errnb;
+      }
+      else {
+         // Save the number of bytes write by the tasks
+         nbytes = nbpar;
+
+         // Re-sort branches if necessary
+//         if (++fNEntriesSinceSorting == kNEntriesResort) {
+//            SortBranchesByTime();
+//            fNEntriesSinceSorting = 0;
+//         }
       }
    }
+   else {
+      printf("sequence processing although imt is enabled\n");//##
+      seqprocessing();
+   }
+#else
+   printf("sequence processing!\n");//##
+   seqprocessing();
+#endif
+
    if (fBranchRef) {
       fBranchRef->Fill();
    }
