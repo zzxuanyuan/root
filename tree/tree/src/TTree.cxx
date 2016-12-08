@@ -5245,8 +5245,9 @@ Int_t TTree::GetEntry(Long64_t entry, Int_t getall)
       std::atomic<Int_t> pos(0);
       std::atomic<Int_t> nbpar(0);
       tbb::task_group g;
-
+      printf("nbranches = %d\n", nbranches);//##
       for (i = 0; i < nbranches; i++) {
+         printf("branch i = %d\n", i);//##
          g.run([&]() {
             // The branch to process is obtained when the task starts to run.
             // This way, since branches are sorted, we make sure that branches
@@ -5254,6 +5255,7 @@ Int_t TTree::GetEntry(Long64_t entry, Int_t getall)
             // branch at task creation time, the scheduler would not necessarily
             // respect our sorting.
             Int_t j = pos.fetch_add(1);
+            printf("task j = %d\n", j);//##
 
             Int_t nbtask = 0;
             auto branch = fSortedBranches[j].second;
