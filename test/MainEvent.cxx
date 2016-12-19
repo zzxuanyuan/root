@@ -100,7 +100,7 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-   ROOT::EnableImplicitMT(10);
+   ROOT::EnableImplicitMT(4);
    Int_t nevent = 400;     // by default create 400 events
    Int_t comp   = 1;       // by default file is compressed
    Int_t split  = 1;       // by default, split Event in sub branches
@@ -134,7 +134,10 @@ int main(int argc, char **argv)
 
    TFile *hfile;
    TTree *tree;
-   Event *event = 0;
+   Event *event1 = 0;
+   Event *event2 = 0;
+   Event *event3 = 0;
+   Event *event4 = 0;
 
    // Fill event, header and tracks with some random numbers
    //   Create a timer object to benchmark this loop
@@ -156,8 +159,14 @@ int main(int argc, char **argv)
       } else
          hfile = new TFile("Event.root");
       tree = (TTree*)hfile->Get("T");
-      TBranch *branch = tree->GetBranch("event");
-      branch->SetAddress(&event);
+      TBranch *branch1 = tree->GetBranch("event1");
+      branch1->SetAddress(&event1);
+      TBranch *branch2 = tree->GetBranch("event2");
+      branch2->SetAddress(&event2);
+      TBranch *branch3 = tree->GetBranch("event3");
+      branch3->SetAddress(&event3);
+      TBranch *branch4 = tree->GetBranch("event4");
+      branch4->SetAddress(&event4);
       Int_t nentries = (Int_t)tree->GetEntries();
       nevent = TMath::Min(nevent,nentries);
       if (read == 1) {  //read sequential
@@ -213,10 +222,19 @@ int main(int argc, char **argv)
       tree->SetCacheSize(10000000);  // set a 10 MBytes cache (useless when writing local files)
       bufsize = 64000;
       if (split)  bufsize /= 4;
-      event = new Event();           // By setting the value, we own the pointer and must delete it.
+      event1 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event2 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event3 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event4 = new Event();           // By setting the value, we own the pointer and must delete it.
       TTree::SetBranchStyle(branchStyle);
-      TBranch *branch = tree->Branch("event", &event, bufsize,split);
-      branch->SetAutoDelete(kFALSE);
+      TBranch *branch1 = tree->Branch("event1", &event1, bufsize,split);
+      branch1->SetAutoDelete(kFALSE);
+      TBranch *branch2 = tree->Branch("event2", &event2, bufsize,split);
+      branch2->SetAutoDelete(kFALSE);
+      TBranch *branch3 = tree->Branch("event3", &event3, bufsize,split);
+      branch3->SetAutoDelete(kFALSE);
+      TBranch *branch4 = tree->Branch("event4", &event4, bufsize,split);
+      branch4->SetAutoDelete(kFALSE);
       if(split >= 0 && branchStyle) tree->BranchRef();
       Float_t ptmin = 1;
 
@@ -230,11 +248,17 @@ int main(int argc, char **argv)
             timer.Continue();
          }
 
-         event->Build(ev, arg5, ptmin);
+         event1->Build(ev, arg5, ptmin);
+         event2->Build(ev, arg5, ptmin);
+         event3->Build(ev, arg5, ptmin);
+         event4->Build(ev, arg5, ptmin);
 
          if (write) nb += tree->Fill();  //fill the tree
 
-         if (hm) hm->Hfill(event);      //fill histograms
+         if (hm) hm->Hfill(event1);      //fill histograms
+         if (hm) hm->Hfill(event2);      //fill histograms
+         if (hm) hm->Hfill(event3);      //fill histograms
+         if (hm) hm->Hfill(event4);      //fill histograms
       }
       if (write) {
          hfile = tree->GetCurrentFile(); //just in case we switched to a new file
@@ -243,7 +267,7 @@ int main(int argc, char **argv)
       }
    }
    // We own the event (since we set the branch address explicitly), we need to delete it.
-   delete event;  event = 0;
+   delete event1;  event1 = 0;
 
    //  Stop timer and print results
    timer.Stop();
