@@ -1211,6 +1211,7 @@ Int_t TBranchElement::Fill()
    if ((fType >= -1) && (fType < 10)) {
       TBranchRef* bref = fTree->GetBranchRef();
       if (bref) {
+         R__LOCKGUARD_IMT2(gROOTMutex);//##
          fBranchID = bref->SetParent(this, fBranchID);
       }
    }
@@ -1218,6 +1219,7 @@ Int_t TBranchElement::Fill()
    if (!nbranches) {
       // No sub-branches.
       if (!TestBit(kDoNotProcess)) {
+//         R__LOCKGUARD_IMT2(gROOTMutex);
          nwrite = TBranch::Fill();
          if (nwrite < 0) {
             Error("Fill", "Failed filling branch:%s, nbytes=%d", GetName(), nwrite);
@@ -1229,6 +1231,7 @@ Int_t TBranchElement::Fill()
    } else {
       // We have sub-branches.
       if (fType == 3 || fType == 4) {
+//         R__LOCKGUARD_IMT2(gROOTMutex);
          // TClonesArray or STL container counter
          nwrite = TBranch::Fill();
          if (nwrite < 0) {
@@ -1243,6 +1246,7 @@ Int_t TBranchElement::Fill()
       for (Int_t i = 0; i < nbranches; ++i) {
          TBranchElement* branch = (TBranchElement*) fBranches[i];
          if (!branch->TestBit(kDoNotProcess)) {
+//            R__LOCKGUARD_IMT2(gROOTMutex);
             nwrite = branch->Fill();
             if (nwrite < 0) {
                Error("Fill", "Failed filling branch:%s.%s, nbytes=%d", GetName(), branch->GetName(), nwrite);

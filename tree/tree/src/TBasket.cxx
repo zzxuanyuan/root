@@ -939,7 +939,10 @@ Int_t TBasket::WriteBuffer()
       fBufferRef->SetReadMode();
       fBufferRef->SetBufferOffset(0);
 
-      Streamer(*fBufferRef);
+      {
+         R__LOCKGUARD_IMT2(gROOTMutex);//##
+         Streamer(*fBufferRef);
+      }
       if (writing) fBufferRef->SetWriteMode();
       Int_t nout = fNbytes - fKeylen;
 
@@ -949,10 +952,13 @@ Int_t TBasket::WriteBuffer()
       fBufferRef->SetBufferOffset(0);
       fHeaderOnly = kTRUE;
 
-      Streamer(*fBufferRef);         //write key itself again
-      int nBytes = WriteFileKeepBuffer();
-      fHeaderOnly = kFALSE;
-      return nBytes>0 ? fKeylen+nout : -1;
+      {
+         R__LOCKGUARD_IMT2(gROOTMutex);//##
+         Streamer(*fBufferRef);         //write key itself again
+         int nBytes = WriteFileKeepBuffer();
+         fHeaderOnly = kFALSE;
+         return nBytes>0 ? fKeylen+nout : -1;
+      }
    }
 
    // Transfer fEntryOffset table at the end of fBuffer.
@@ -1010,8 +1016,10 @@ Int_t TBasket::WriteBuffer()
             fBuffer = fBufferRef->Buffer();
             Create(fObjlen,file);
             fBufferRef->SetBufferOffset(0);
-
-            Streamer(*fBufferRef);         //write key itself again
+            {
+               R__LOCKGUARD_IMT2(gROOTMutex);//##
+               Streamer(*fBufferRef);         //write key itself again
+            }
             if ((nout+fKeylen)>buflen) {
                Warning("WriteBuffer","Possible memory corruption due to compression algorithm, wrote %d bytes past the end of a block of %d bytes. fNbytes=%d, fObjLen=%d, fKeylen=%d",
                   (nout+fKeylen-buflen),buflen,fNbytes,fObjlen,fKeylen);
@@ -1026,21 +1034,28 @@ Int_t TBasket::WriteBuffer()
       nout = noutot;
       Create(noutot,file);
       fBufferRef->SetBufferOffset(0);
-
-      Streamer(*fBufferRef);         //write key itself again
+      {
+         R__LOCKGUARD_IMT2(gROOTMutex);//##
+         Streamer(*fBufferRef);         //write key itself again
+      }
       memcpy(fBuffer,fBufferRef->Buffer(),fKeylen);
    } else {
       fBuffer = fBufferRef->Buffer();
       Create(fObjlen,file);
       fBufferRef->SetBufferOffset(0);
-
-      Streamer(*fBufferRef);         //write key itself again
+      {
+         R__LOCKGUARD_IMT2(gROOTMutex);//##
+         Streamer(*fBufferRef);         //write key itself again
+      }
       nout = fObjlen;
    }
 
 WriteFile:
-   Int_t nBytes = WriteFileKeepBuffer();
-   fHeaderOnly = kFALSE;
-   return nBytes>0 ? fKeylen+nout : -1;
+   {
+      R__LOCKGUARD_IMT2(gROOTMutex);//##
+      Int_t nBytes = WriteFileKeepBuffer();
+      fHeaderOnly = kFALSE;
+      return nBytes>0 ? fKeylen+nout : -1;
+   }
 }
 

@@ -4417,7 +4417,7 @@ Int_t TTree::Fill()
 
 #ifdef R__USE_IMT
    if (ROOT::IsImplicitMTEnabled() && fIMTEnabled) {
-      printf("imt processing\n");//##
+//      printf("imt processing\n");//##
       if (fSortedBranches.empty()) InitializeSortedBranches();
 
       // Enable this IMT use case (activate its locks)
@@ -4470,18 +4470,18 @@ Int_t TTree::Fill()
          nbytes = nbpar;
 
          // Re-sort branches if necessary
-//         if (++fNEntriesSinceSorting == kNEntriesResort) {
-//            SortBranchesByTime();
-//            fNEntriesSinceSorting = 0;
-//         }
+         if (++fNEntriesSinceSorting == kNEntriesResort) {
+            SortBranchesByTime();
+            fNEntriesSinceSorting = 0;
+         }
       }
    }
    else {
-      printf("sequence processing although imt is enabled\n");//##
+//      printf("sequence processing although imt is enabled\n");//##
       seqprocessing();
    }
 #else
-   printf("sequence processing!\n");//##
+//   printf("sequence processing!\n");//##
    seqprocessing();
 #endif
 
@@ -5297,6 +5297,7 @@ Int_t TTree::GetEntry(Long64_t entry, Int_t getall)
    if (fCacheDoAutoInit) SetCacheSizeAux();
 
    Int_t nbranches = fBranches.GetEntriesFast();
+//   printf("nbranches = %d\n", nbranches);//##
    Int_t nb=0;
 
    auto seqprocessing = [&]() {
@@ -5320,7 +5321,6 @@ Int_t TTree::GetEntry(Long64_t entry, Int_t getall)
       std::atomic<Int_t> pos(0);
       std::atomic<Int_t> nbpar(0);
       tbb::task_group g;
-
       for (i = 0; i < nbranches; i++) {
          g.run([&]() {
             // The branch to process is obtained when the task starts to run.

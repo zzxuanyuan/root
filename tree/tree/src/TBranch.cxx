@@ -742,6 +742,7 @@ Int_t TBranch::Fill()
 
    TBasket* basket = GetBasket(fWriteBasket);
    if (!basket) {
+//      R__LOCKGUARD_IMT2(gROOTMutex);//##
       basket = fTree->CreateBasket(this); //  create a new basket
       if (!basket) return 0;
       ++fNBaskets;
@@ -762,9 +763,12 @@ Int_t TBranch::Fill()
    Int_t lnew = 0;
    Int_t nbytes = 0;
 
+
    if (fEntryBuffer) {
+//      R__LOCKGUARD_IMT2(gROOTMutex);//##
       nbytes = FillEntryBuffer(basket,buf,lnew);
    } else {
+//      R__LOCKGUARD_IMT2(gROOTMutex);//##
       Int_t lold = buf->Length();
       basket->Update(lold);
       ++fEntries;
@@ -784,6 +788,7 @@ Int_t TBranch::Fill()
       nsize = nevbuf * sizeof(Int_t);
    } else {
       if (!basket->GetNevBufSize()) {
+//         R__LOCKGUARD_IMT2(gROOTMutex);//##
          basket->SetNevBufSize(nbytes);
       }
    }
@@ -793,6 +798,7 @@ Int_t TBranch::Fill()
    // Transfer full compressed buffer only
 
    if ((fSkipZip && (lnew >= TBuffer::kMinimalSize)) || (buf->TestBit(TBufferFile::kNotDecompressed)) || ((lnew + (2 * nsize) + nbytes) >= fBasketSize)) {
+//      R__LOCKGUARD_IMT2(gROOTMutex);//##
       if (fTree->TestBit(TTree::kCircular)) {
          return nbytes;
       }
@@ -2584,13 +2590,13 @@ Int_t TBranch::WriteBasket(TBasket* basket, Int_t where)
       // Increase the array ...
       fEntryOffsetLen = 2*nevbuf; // assume some fluctuations.
    }
-
    Int_t nout  = basket->WriteBuffer();    //  Write buffer
    fBasketBytes[where]  = basket->GetNbytes();
    fBasketSeek[where]   = basket->GetSeekKey();
    Int_t addbytes = basket->GetObjlen() + basket->GetKeylen();
    TBasket *reusebasket = 0;
    if (nout>0) {
+//      R__LOCKGUARD_IMT2(gROOTMutex);//##
       // The Basket was written so we can now safely reuse it.
       fBaskets[where] = 0;
 
@@ -2604,6 +2610,7 @@ Int_t TBranch::WriteBasket(TBasket* basket, Int_t where)
    }
 
    if (where==fWriteBasket) {
+//      R__LOCKGUARD_IMT2(gROOTMutex);//##
       ++fWriteBasket;
       if (fWriteBasket >= fMaxBaskets) {
          ExpandBasketArrays();
@@ -2618,6 +2625,7 @@ Int_t TBranch::WriteBasket(TBasket* basket, Int_t where)
       fBaskets.AddAtAndExpand(reusebasket,fWriteBasket);
       fBasketEntry[fWriteBasket] = fEntryNumber;
    } else {
+//      R__LOCKGUARD_IMT2(gROOTMutex);//##
       --fNBaskets;
       fBaskets[where] = 0;
       basket->DropBuffers();
