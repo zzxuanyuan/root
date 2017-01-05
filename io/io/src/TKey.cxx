@@ -1345,6 +1345,18 @@ Int_t TKey::Sizeof() const
 
 void TKey::Streamer(TBuffer &b)
 {
+//   Int_t tsize = b.BufferSize();//##
+//   char *tbuff = b.Buffer();//##
+//   printf("In TKey::Streamer, tbuff begin is : \n");//##
+//   for(Int_t i = 0; i < b.Length(); ++i) {
+//      printf("%x ", tbuff[i]);//##
+//   }
+//   printf("\n");//##
+//   printf("In TKey::Streamer, tbuff fBufCur is : \n");//##
+//   for(Int_t i = b.Length(); i < b.Length()+tsize; ++i) {
+//      printf("%x ", tbuff[i]);//##
+//   }
+//   printf("\n");//##
    Version_t version;
    if (b.IsReading()) {
       b >> fNbytes;
@@ -1353,6 +1365,7 @@ void TKey::Streamer(TBuffer &b)
       fDatime.Streamer(b);
       b >> fKeylen;
       b >> fCycle;
+      printf("Streamer TKey, fNbytes=%d,version=%d,fObjlen=%d,fKeylen=%d,fCycle=%d\n",fNbytes,version,fObjlen,fKeylen,fCycle);//##
       if (fVersion > 1000) {
          b >> fSeekKey;
 
@@ -1367,10 +1380,12 @@ void TKey::Streamer(TBuffer &b)
          b >> pdir;
          fPidOffset = pdir >> kPidOffsetShift;
          fSeekPdir = pdir & kPidOffsetMask;
+         printf("in if fSeekKey = %lld\n", fSeekKey);//##
       } else {
          UInt_t seekkey, seekdir;
          b >> seekkey; fSeekKey = (Long64_t)seekkey;
          b >> seekdir; fSeekPdir= (Long64_t)seekdir;
+         printf("in else fSeekKey = %lld\n", fSeekKey);//##
       }
       fClassName.Streamer(b);
       //the following test required for forward and backward compatibility
@@ -1397,6 +1412,7 @@ void TKey::Streamer(TBuffer &b)
       }
 
    } else {
+      printf("OMG, it's a write?!\n");//##
       b << fNbytes;
       version = (Version_t)fVersion;
       b << version;

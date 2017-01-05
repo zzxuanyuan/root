@@ -1,0 +1,629 @@
+./tree/inc/TLeaf.h:      Error("ReadValue", "Not implemented!");
+./tree/inc/TTree.h:      kInternalError = -4,
+./tree/inc/TBranchElement.h:#ifndef ROOT_TError
+./tree/inc/TBranchElement.h:#include "TError.h"
+./tree/inc/TBranchElement.h:            Error("ValidateAddress", "We owned an object whose address changed!  our ptr: %p  new ptr: %p",
+./tree/src/TreeUtils.cxx:#include "TError.h"
+./tree/src/TreeUtils.cxx:      ::Error("FillNtupleFromStream", "invalid delimiter - newline character");
+./tree/src/TreeUtils.cxx:      ::Error("FillNtuplesFromStream", "invalid delimiter, '#' symbols can only start a comment");
+./tree/src/TreeUtils.cxx:      ::Error("FillNtupleFromStream", "invalid number of elements");
+./tree/src/TreeUtils.cxx:               ::Error("FillNtupleFromStream", "no data read");
+./tree/src/TreeUtils.cxx:               ::Error("FillNtupleFromStream", "failed to read a tuple (not enough values found)");
+./tree/src/TreeUtils.cxx:                  ::Error("FillNtupleFromStream", "delimiter expected");
+./tree/src/TreeUtils.cxx:               ::Error("FillNtupleFromStream", "unexpected character or eof found");
+./tree/src/TreeUtils.cxx:               ::Error("FillNtupleFromStream", "error while reading a value");
+./tree/src/TreeUtils.cxx:            ::Error("FillNtupleFromStream",
+./tree/src/TreeUtils.cxx:               ::Error("FillNtupleFromStream", "no data read");
+./tree/src/TreeUtils.cxx:               ::Error("FillNtupleFromStream", "unexpected character or eof found");
+./tree/src/TreeUtils.cxx:               ::Error("FillNtupleFromStream", "delimiter expected (non-strict mode)");
+./tree/src/TreeUtils.cxx:            ::Error("FillNtupleFromStream", "error while reading a value");
+./tree/src/TBufferSQL.cxx:#include "TError.h"
+./tree/src/TBufferSQL.cxx:   if(code == 0) Error("operator>>(UInt_t&)","Error reading UInt_t");
+./tree/src/TBufferSQL.cxx:   if(code == 0) Error("operator>>(ULong_t&)","Error reading ULong_t");
+./tree/src/TBufferSQL.cxx:   if(code == 0) Error("operator>>(ULong_t&)","Error reading Long64_t");
+./tree/src/TBufferSQL.cxx:   if(code == 0) Error("operator>>(ULong_t&)","Error reading ULong64_t");
+./tree/src/TBranchObject.cxx:      Error("TBranchObject", "Cannot find class:%s", classname);
+./tree/src/TBranchObject.cxx:      Error("GetExpectedType", "Did not find any leaves in %s",GetName());
+./tree/src/TBranchObject.cxx:            Error("SetAddress", "Pointer to TClonesArray is null");
+./tree/src/TLeafB.cxx:            Error("ReadBasket", "leaf: '%s' len: %d max: %d", GetName(), len, fLeafCount->GetMaximum());
+./tree/src/TTreeCloner.cxx:#include "TError.h"
+./tree/src/TTreeCloner.cxx:            Error("TTreeCloner::CollectBranches", "%s", fWarningMsg.Data());
+./tree/src/TTreeCloner.cxx:                  Error("TTreeCloner::CollectBranches", "%s", fWarningMsg.Data());
+./tree/src/TTreeCloner.cxx:               Error("TTreeCloner::CollectBranches", "%s", fWarningMsg.Data());
+./tree/src/TTreeCloner.cxx:            Error("CopyProcessIDs","Copied %s from %s might already exist!\n",
+./tree/src/TBranch.cxx:            Error("TLeaf", "Illegal data type for %s/%s", name, leaflist);
+./tree/src/TBranch.cxx:            Error("TBranch", "Illegal leaf: %s/%s", name, leaflist);
+./tree/src/TBranch.cxx:               Error("AddBasket","An out-of-order basket matches the entry number of an existing basket.");
+./tree/src/TBranch.cxx:      Error("GetBasket","File: %s at byte:%lld, branch:%s, entry:%lld, badread=%d, nerrors=%d, basketnumber=%d",file->GetName(),basket->GetSeekKey(),GetName(),fReadEntry,badread,nerrors.load(),basketnumber);
+./tree/src/TBranch.cxx:            Error("In the branch %s, no basket contains the entry %d\n", GetName(), entry);
+./tree/src/TBranch.cxx:         Error("In the branch %s, no basket contains the entry %d\n", GetName(), entry);
+./tree/src/TBranch.cxx:      Error("GetExpectedType", "Did not find any leaves in %s",GetName());
+./tree/src/TBranch.cxx:         Error("Loadbaskets","Error while reading basket buffer %d of branch %s",i,GetName());
+./tree/src/TBranch.cxx:      Error("TBranch::SetAddress","Filling from a TBuffer can only be done with a not split object branch.  Request ignored.");
+./tree/src/TEventList.cxx:         Error("Add","Attempt to add object of class: %s to a %s",el->ClassName(),this->ClassName());
+./tree/src/TTreeCacheUnzip.cxx:            Error("TTreeCacheUnzip::StartThreadUnzip", " Unable to create new thread.");
+./tree/src/TTreeCacheUnzip.cxx:         Error("UnzipBuffer", "Inconsistency found in header (nin=%d, nbuf=%d)", nin, nbuf);
+./tree/src/TTreeCacheUnzip.cxx:         Error("UnzipBuffer", "nbytes = %d, keylen = %d, objlen = %d, noutot = %d, nout=%d, nin=%d, nbuf=%d",
+./tree/src/TTree.cxx:#include "TError.h"
+./tree/src/TTree.cxx:         Error("AddBranchToCache","Could not load a tree");
+./tree/src/TTree.cxx:      Error("AddBranchToCache", "No tree is available. Branch was not added to the cache");
+./tree/src/TTree.cxx:      Error("AddBranchToCache", "No file is available. Branch was not added to the cache");
+./tree/src/TTree.cxx:      Error("AddBranchToCache", "No cache is available, branch not added");
+./tree/src/TTree.cxx:         Error("AddBranchToCache","Could not load a tree");
+./tree/src/TTree.cxx:             Error("AddBranchToCache", "Error adding branch");
+./tree/src/TTree.cxx:      Error("AddBranchToCache", "No tree is available. Branch was not added to the cache");
+./tree/src/TTree.cxx:      Error("AddBranchToCache", "No file is available. Branch was not added to the cache");
+./tree/src/TTree.cxx:      Error("AddBranchToCache", "No cache is available, branch not added");
+./tree/src/TTree.cxx:         Error("DropBranchFromCache","Could not load a tree");
+./tree/src/TTree.cxx:      Error("DropBranchFromCache", "No tree is available. Branch was not dropped from the cache");
+./tree/src/TTree.cxx:      Error("DropBranchFromCache", "No file is available. Branch was not dropped from the cache");
+./tree/src/TTree.cxx:      Error("DropBranchFromCache", "No cache is available, branch not dropped");
+./tree/src/TTree.cxx:         Error("DropBranchFromCache","Could not load a tree");
+./tree/src/TTree.cxx:             Error("DropBranchFromCache", "Error dropping branch");
+./tree/src/TTree.cxx:      Error("DropBranchFromCache", "No tree is available. Branch was not dropped from the cache");
+./tree/src/TTree.cxx:      Error("DropBranchFromCache", "No file is available. Branch was not dropped from the cache");
+./tree/src/TTree.cxx:      Error("DropBranchFromCache", "No cache is available, branch not dropped");
+./tree/src/TTree.cxx:         Error("Branch", writeStlWithoutProxyMsg,
+./tree/src/TTree.cxx:            Error("Branch", "The class requested (%s) for \"%s\" is different from the type of the pointer passed (%s)",
+./tree/src/TTree.cxx:            Error("Branch", "The actual class (%s) of the object provided for the definition of the branch \"%s\" does not inherit from %s",
+./tree/src/TTree.cxx:      Error("Branch", writeStlWithoutProxyMsg,
+./tree/src/TTree.cxx:      Error("Branch", "The pointer specified for %s is not of a class known to ROOT", branchname);
+./tree/src/TTree.cxx:         Error("Branch", "The actual class (%s) of the object provided for the definition of the branch \"%s\" does not inherit from %s", actualClass->GetName(), branchname, ptrClass->GetName());
+./tree/src/TTree.cxx:      Error("Branch", writeStlWithoutProxyMsg,
+./tree/src/TTree.cxx:         Error("Branch", writeStlWithoutProxyMsg,
+./tree/src/TTree.cxx:         Error("Branch", "The pointer specified for %s is not of a class known to ROOT and %s is not a known class", branchname, classname);
+./tree/src/TTree.cxx:      Error("Branch", "Reference interface requires a valid object (for branch: %s)!", branchname);
+./tree/src/TTree.cxx:            Error("Branch", "The class requested (%s) for \"%s\" is different from the type of the object passed (%s)",
+./tree/src/TTree.cxx:            Error("Branch", "The actual class (%s) of the object provided for the definition of the branch \"%s\" does not inherit from %s",
+./tree/src/TTree.cxx:      Error("Branch", "The actual class (%s) of the object provided for the definition of the branch \"%s\" does not inherit from %s", actualClass->GetName(), branchname, ptrClass->GetName());
+./tree/src/TTree.cxx:      Error("Branch", writeStlWithoutProxyMsg,
+./tree/src/TTree.cxx:         Error("Branch", "The pointer specified for %s is not of a class or type known to ROOT", branchname);
+./tree/src/TTree.cxx:      Error("Branch", "Reference interface requires a valid object (for branch: %s)!", branchname);
+./tree/src/TTree.cxx:      Error("Branch", "The actual class (%s) of the object provided for the definition of the branch \"%s\" does not inherit from %s", actualClass->GetName(), branchname, ptrClass->GetName());
+./tree/src/TTree.cxx:      Error("Branch", writeStlWithoutProxyMsg,
+./tree/src/TTree.cxx:      Error("Branch", "Cannot call this constructor for a TClonesArray");
+./tree/src/TTree.cxx:      Error("BranchOld", "Cannot find class: '%s'", classname);
+./tree/src/TTree.cxx:                  Error("BranchOld", "Cannot create branch for rdname: %s code: %d", branchname.Data(), code);
+./tree/src/TTree.cxx:            Error("BranchOld", "Cannot create branch for rdname: %s code: %d", branchname.Data(), code);
+./tree/src/TTree.cxx:      Error("Bronch", "Cannot find class:%s", classname);
+./tree/src/TTree.cxx:         Error("Bronch", "Pointer to TClonesArray is null");
+./tree/src/TTree.cxx:         Error("Bronch", "TClonesArray with no class defined in branch: %s", name);
+./tree/src/TTree.cxx:         Error("Bronch", "TClonesArray with no dictionary defined in branch: %s", name);
+./tree/src/TTree.cxx:      //   Error("Bronch", "%s is missing its CollectionProxy (for branch %s)", classname, name);
+./tree/src/TTree.cxx:         Error("Bronch", "%s with no class defined in branch: %s", classname, name);
+./tree/src/TTree.cxx:               Error("Bronch", "Container with no dictionary defined in branch: %s", name);
+./tree/src/TTree.cxx:      Error("Bronch", "Cannot find dictionary for class: %s", classname);
+./tree/src/TTree.cxx:      Error("Bronch", "Cannot build the StreamerInfo for class: %s", cl->GetName());
+./tree/src/TTree.cxx:      Error("Fill","Failed to open new file %s, continuing as a memory tree.",fname);
+./tree/src/TTree.cxx:/// - kInternalError (-4) : Internal error (could not find the type corresponding to a data type number)
+./tree/src/TTree.cxx:      return kInternalError;
+./tree/src/TTree.cxx:         Error("SetBranchAddress", "Unable to determine the type given for the address for \"%s\". "
+./tree/src/TTree.cxx:         Error("SetBranchAddress", "Unable to determine the type given for the address for \"%s\". "
+./tree/src/TTree.cxx:         Error("SetBranchAddress", "Unable to determine the type given for the address for \"%s\". "
+./tree/src/TTree.cxx:         Error("SetBranchAddress", "The address for \"%s\" should be the address of a pointer!", branch->GetName());
+./tree/src/TTree.cxx:         Error("SetBranchAddress", "The pointer type given \"%s\" does not correspond to the type needed \"%s\" by the branch: %s", ptrClass->GetName(), bEl->GetClassName(), branch->GetName());
+./tree/src/TTree.cxx:      Error("SetBranchAddress", "The pointer type given (%s) does not correspond to the class needed (%s) by the branch: %s", ptrClass->GetName(), expectedClass->GetName(), branch->GetName());
+./tree/src/TTree.cxx:         Error("SetBranchAddress", "The pointer type given \"%s\" (%d) does not correspond to the type needed \"%s\" (%d) by the branch: %s",
+./tree/src/TTree.cxx:         Error("SetBranchAddress", "The pointer type given \"%s\" (%d) does not correspond to the type needed \"%s\" by the branch: %s",
+./tree/src/TTree.cxx:         Error("SetBranchAddress", "The pointer type given \"%s\" does not correspond to the type needed \"%s\" (%d) by the branch: %s",
+./tree/src/TTree.cxx:      Error("SetBranchAddress", writeStlWithoutProxyMsg,
+./tree/src/TTree.cxx:            Error("CloneTTree", "TTree has not been cloned\n");
+./tree/src/TTree.cxx:   enum EOnIndexError { kDrop, kKeep, kBuild };
+./tree/src/TTree.cxx:   static Bool_t R__HandleIndex(EOnIndexError onIndexError, TTree *newtree, TTree *oldtree)
+./tree/src/TTree.cxx:            switch (onIndexError) {
+./tree/src/TTree.cxx:         switch (onIndexError) {
+./tree/src/TTree.cxx:      } else if ( onIndexError == kDrop ) {
+./tree/src/TTree.cxx:/// - DropIndexOnError    : if any of the underlying TTree object do no have a TTreeIndex,
+./tree/src/TTree.cxx:/// - AsIsIndexOnError [default]: In case of missing TTreeIndex, the resulting TTree index has gaps.
+./tree/src/TTree.cxx:/// - BuildIndexOnError : If any of the underlying TTree objects do not have a TTreeIndex,
+./tree/src/TTree.cxx:   EOnIndexError onIndexError;
+./tree/src/TTree.cxx:      onIndexError = kKeep;
+./tree/src/TTree.cxx:      onIndexError = kBuild;
+./tree/src/TTree.cxx:      onIndexError = kDrop;
+./tree/src/TTree.cxx:      onIndexError = kBuild;
+./tree/src/TTree.cxx:            withIndex = R__HandleIndex( onIndexError, this, tree );
+./tree/src/TTree.cxx:               withIndex = R__HandleIndex( onIndexError, this, tree );
+./tree/src/TTree.cxx:         Error("Delete","File : %s is not writable, cannot delete Tree:%s", file->GetName(),GetName());
+./tree/src/TTree.cxx:///  the bin error are computed, See TProfile2D::SetErrorOption for
+./tree/src/TTree.cxx:/// the bin error are computed, See TProfile2D::SetErrorOption for
+./tree/src/TTree.cxx:            Error("Fill", "Failed filling branch:%s.%s, nbytes=%d, entry=%lld\n"
+./tree/src/TTree.cxx:            Error("Fill", "Failed filling branch:%s.%s, nbytes=%d, entry=%lld", GetName(), branch->GetName(), nwrite,fEntries+1);
+./tree/src/TTree.cxx:         Error("Add","Attempt to add object of class: %s to a %s", tree->ClassName(), ClassName());
+./tree/src/TTree.cxx:         Error("Add","Attempt to add object of class: %s to a %s", tree->ClassName(), ClassName());
+./tree/src/TTree.cxx:      Error("ReadFile","Cannot open file: %s",filename);
+./tree/src/TTree.cxx:         Error("ReadStream","Error reading stream: no newline found.");
+./tree/src/TTree.cxx:      Error("ReadStream","Error reading stream");
+./tree/src/TTree.cxx:               Error("ReadStream","Error reading stream");
+./tree/src/TTree.cxx:         // Error handling
+./tree/src/TTree.cxx:      Error("SetBasketSize", "unknown branch -> '%s'", bname);
+./tree/src/TTree.cxx:      Error("SetBranchAddress", "unknown branch -> %s", bname);
+./tree/src/TTree.cxx:      Error("SetBranchAddress", "unknown branch -> %s", bname);
+./tree/src/TTree.cxx:               Error("SetBranchStatus", "No branch name is matching wildcard -> %s", bname);
+./tree/src/TTree.cxx:               Error("SetBranchStatus", "unknown branch -> %s", bname);
+./tree/src/TTree.cxx:               Error("SetCacheSizeAux", "Not setting up an automatically sized TTreeCache because of missing cache previously set");
+./tree/src/TTree.cxx:         Error("SetCacheEntryRange","Could not load a tree");
+./tree/src/TTree.cxx:      Error("SetCacheEntryRange", "No tree is available. Could not set cache entry range");
+./tree/src/TTree.cxx:      Error("SetCacheEntryRange", "No file is available. Could not set cache entry range");
+./tree/src/TTree.cxx:      Error("SetCacheEntryRange", "No cache is available. Could not set entry range");
+./tree/src/TTree.cxx:         Error("Show()", "Cannot read entry %lld (entry does not exist)", entry);
+./tree/src/TTree.cxx:         Error("Show()", "Cannot read entry %lld (I/O error)", entry);
+./tree/src/TTree.cxx:         Error("Show()", "Cannot read entry %lld (I/O error)", entry);
+./tree/src/TTree.cxx:         Error("Show()", "Cannot read entry %lld (no data read)", entry);
+./tree/src/TTree.cxx:         Error("StopCacheLearningPhase","Could not load a tree");
+./tree/src/TTree.cxx:      Error("StopCacheLearningPhase", "No tree is available. Could not stop cache learning phase");
+./tree/src/TTree.cxx:      Error("StopCacheLearningPhase", "No file is available. Could not stop cache learning phase");
+./tree/src/TTree.cxx:      Error("StopCacheLearningPhase", "No cache is available. Could not stop learning phase");
+./tree/src/TTree.cxx:/// - option = "E" Perform better Errors estimation using Minos technique
+./tree/src/TBasketSQL.cxx:      Error("CreateBuffer","Need a vector of columns\n");
+./tree/src/TBasketSQL.cxx:   Error("ReadBasketBytes","This member function should not be called!");
+./tree/src/TBasketSQL.cxx:   Error("ReadBasketBuffers","This member function should not be called!");
+./tree/src/TBasket.cxx:      Error("ReadBasketBuffers", "Unable to allocate buffer.");
+./tree/src/TBasket.cxx:            Error("ReadBasketBuffers", "Unable to allocate buffer.");
+./tree/src/TBasket.cxx:            Error("ReadBasketBuffers", "Inconsistency found in header (nin=%d, nbuf=%d)", nin, nbuf);
+./tree/src/TBasket.cxx:         Error("ReadBasketBuffers", "fNbytes = %d, fKeylen = %d, fObjlen = %d, noutot = %d, nout=%d, nin=%d, nbuf=%d", fNbytes,fKeylen,fObjlen, noutot,nout,nin,nbuf);
+./tree/src/TBasket.cxx:         Error("Streamer","The value of fNevBufSize is incorrect (%d) ; trying to recover by setting it to zero",fNevBufSize);
+./tree/src/TChain.cxx:#include "TError.h"
+./tree/src/TChain.cxx:      Error("AddFile", "No file name; no files connected");
+./tree/src/TChain.cxx:         Error("AddFile", "cannot find tree with name %s in file %s", treename, filename);
+./tree/src/TChain.cxx:   Error("LoadBaskets", "Function not yet implemented for TChain.");
+./tree/src/TChain.cxx:         Error("LoadTree", "Cannot find tree with name %s in file %s", element->GetName(), element->GetTitle());
+./tree/src/TChain.cxx:      // The Error message already issued.  However if we reach here
+./tree/src/TChain.cxx:            Error("Lookup", "TFileStager instance cannot be instantiated");
+./tree/src/TChain.cxx:            Error("Lookup", "file %s does not exist\n", eurl.Data());
+./tree/src/TChain.cxx:            Error("Lookup", "file %s cannot be read\n", eurl.Data());
+./tree/src/TChain.cxx:   Error("Loop", "Function not yet implemented");
+./tree/src/TChain.cxx:   Error("Merge", "not implemented");
+./tree/src/TChain.cxx:   Error("Merge", "not implemented");
+./tree/src/TChain.cxx:         Error("Merge", "TTree has not been cloned\n");
+./tree/src/TChain.cxx:         Error("SetBranchAddress", "unknown branch -> %s", bname);
+./tree/src/TChain.cxx:      Error("SetEntryList", "No list found for the trees in this chain");
+./tree/src/TChain.cxx:            Error("SetProof", "creation of TProofChain failed");
+./tree/src/TSelector.cxx:#include "TError.h"
+./tree/src/TSelector.cxx:      ::Error("TSelector::GetSelector","unable to determine the classname for file %s", filename);
+./tree/src/TSelector.cxx:            ::Error("TSelector::GetSelector",
+./tree/src/TSelector.cxx:            ::Error("TSelector::GetSelector", "class %s could not be loaded", filename);
+./tree/src/TSelector.cxx:            ::Error("TSelector::GetSelector",
+./tree/src/TSelector.cxx:               ::Error("TSelector::GetSelector",
+./tree/src/TSelector.cxx:               ::Error("TSelector::GetSelector",
+./tree/src/TSelector.cxx:               ::Error("TSelector::GetSelector", "class %s could not be loaded", filename);
+./tree/src/TSelector.cxx:               ::Error("TSelector::GetSelector",
+./tree/src/TEntryListFromFile.cxx:#include "TError.h"
+./tree/src/TEntryListFromFile.cxx:      Error("GetEntry", "Index value is too large\n");
+./tree/src/TEntryListFromFile.cxx:      Error("GetEntry", "All lists are empty\n");
+./tree/src/TEntryListFromFile.cxx:         Error("GetEntry", "Entry number is too big\n");
+./tree/src/TEntryListFromFile.cxx:      Error("Next", "All lists are empty\n");
+./tree/src/TEntryListFromFile.cxx:            // Error("Next", "No more entries, last list\n");
+./tree/src/TEntryListFromFile.cxx:         Error("Next", "Something wrong with reading the current list, even though thefile #%d and the list exist\n", fTreeNumber);
+./tree/src/TEntryListFromFile.cxx:      Error("LoadList", "List %s not found in the file\n", fListName.Data());
+./tree/src/TEntryListFromFile.cxx:      Error("Print","fFileNames was not set properly.");
+./tree/src/TEntryListBlock.cxx:      Error("Enter", "illegal entry value!");
+./tree/src/TEntryListBlock.cxx:      Error("Remove", "Illegal entry value!\n");
+./tree/src/TEntryListBlock.cxx:      Error("Contains", "Illegal entry value!\n");
+./tree/src/TBranchElement.cxx:#include "TError.h"
+./tree/src/TBranchElement.cxx:         Error("Init","Missing class object of the TClonesArray %s\n",clones->GetName());
+./tree/src/TBranchElement.cxx:         Error("BuildTitle", "This cannot happen, fType of parent is not 3 or 4!");
+./tree/src/TBranchElement.cxx:         Error("Fill", "attempt to fill branch %s while addresss is not set", GetName());
+./tree/src/TBranchElement.cxx:            Error("Fill", "Failed filling branch:%s, nbytes=%d", GetName(), nwrite);
+./tree/src/TBranchElement.cxx:            Error("Fill", "Failed filling branch:%s, nbytes=%d", GetName(), nwrite);
+./tree/src/TBranchElement.cxx:               Error("Fill", "Failed filling branch:%s.%s, nbytes=%d", GetName(), branch->GetName(), nwrite);
+./tree/src/TBranchElement.cxx:         Error("FillLeaves", "Cannot get streamer info for branch '%s' class '%s'", GetName(), fClonesClass->GetName());
+./tree/src/TBranchElement.cxx:         //Error("FillLeaves", "Branch address not set for branch '%s'!", GetName());
+./tree/src/TBranchElement.cxx:         Error("FillLeaves", "The branch counter address was zero!");
+./tree/src/TBranchElement.cxx:         Error("FillLeaves", "Clonesa: %s, n=%d, sorry not supported yet", GetName(), n);
+./tree/src/TBranchElement.cxx:      Error("FillLeaves", "Cannot get streamer info for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:      Error("FillLeaves", "Cannot get streamer info for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:      Error("FillLeaves", "Cannot get streamer info for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:      Error("FillLeaves", "Cannot get streamer info for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:      Error("FillLeaves", "Cannot get streamer info for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:      Error("FillLeaves", "Cannot get streamer info for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:      Error("FillLeaves", "Cannot get streamer info for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:            Error( "InitInfo", "The target class dictionary is not present!" );
+./tree/src/TBranchElement.cxx:         Error("InitInfo","StreamerInfo is not compiled.");
+./tree/src/TBranchElement.cxx:               Error("GetExpectedType", "Did not find the type number for %s", element->GetTypeNameBasic());
+./tree/src/TBranchElement.cxx:         Error("GetExpectedType", "Did not find the type for %s",GetName());
+./tree/src/TBranchElement.cxx:         Error("InitializeOffsets", "Could not find class for branch: %s", GetName());
+./tree/src/TBranchElement.cxx:                     Error("InitializeOffsets",
+./tree/src/TBranchElement.cxx:            Error("ReadLeaves", "Incorrect size read for the container in %s\nThe size read is %d when the maximum is %d\nThe size is reset to 0 for this entry (%lld)", GetName(), n[0], fMaximum, GetReadEntry());
+./tree/src/TBranchElement.cxx:         Error("ReadLeaves", "Incorrect size read for the container in %s\n\tThe size read is %d while the maximum is %d\n\tThe size is reset to 0 for this entry (%lld)", GetName(), n, fMaximum, GetReadEntry());
+./tree/src/TBranchElement.cxx:         Error("ReadLeaves", "Incorrect size read for the container in %s\n\tThe size read is %d while the maximum is %d\n\tThe size is reset to 0 for this entry (%lld)", GetName(), n, fMaximum, GetReadEntry());
+./tree/src/TBranchElement.cxx:               Error("SetAddress","For %s, we can not convert %s into %s\n",
+./tree/src/TBranchElement.cxx:            Error("SetAddress","For %s can not convert %s into %s\n",GetName(),GetCurrentClass()->GetName(),newType->GetName());
+./tree/src/TBranchElement.cxx:               Error("SetAddress", "TClonesArray with fStreamerType: %d", fStreamerType);
+./tree/src/TBranchElement.cxx:            Error("SetAddress", "Embedded TClonesArray given a zero address for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:               Error("SetAddress", "TClonesArray with fStreamerType: %d", fStreamerType);
+./tree/src/TBranchElement.cxx:               Error("SetAddress", "Embedded pointer to a TClonesArray given a zero address for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:               Error("SetAddress", "STL container with fStreamerType: %d", fStreamerType);
+./tree/src/TBranchElement.cxx:                     Error("SetAddress", "Failed to allocate STL container for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:                     Error("SetAddress", "Failed to allocate STL container for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:            Error("SetAddress", "Embedded STL container given a zero address for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:               Error("SetAddress", "STL container with fStreamerType: %d", fStreamerType);
+./tree/src/TBranchElement.cxx:                  Error("SetAddress", "Failed to allocate STL container for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:               Error("SetAddress", "Embedded pointer to an STL container given a zero address for branch '%s'", GetName());
+./tree/src/TBranchElement.cxx:            Error("SetAddress", "I have no TClass for branch %s, so I cannot allocate an I/O buffer!", GetName());
+./tree/src/TLeafObject.cxx:         Error("FillBasket","Attempt to write a NULL object in leaf:%s",GetName());
+./tree/src/TLeafObject.cxx:   Error("GetMethodCall","Unknown method:%s",name);
+./tree/src/TLeaf.cxx:      Error("GetLeafCounter","TLeaf %s is not setup properly, fBranch is null.",GetName());
+./tree/src/TLeaf.cxx:      Error("GetLeafCounter","For Leaf %s, the TBranch %s is not setup properly, fTree is null.",GetName(),fBranch->GetName());
+./tree/src/TLeaf.cxx:         Error("GetLen", "Leaf counter is greater than maximum!  leaf: '%s' len: %d max: %d", GetName(), len, fLeafCount->GetMaximum());
+./tree/src/TBranchBrowsable.cxx:         Error("Browse", "branch not set - might access wrong tree!");
+./tree/src/TBranchBrowsable.cxx:            ::Error("TNonSplitBrowsable::GetBrowsables",
+./tree/src/TSelectorList.cxx:      Error("CheckDuplicateName","object with name: %s already in the list",obj->GetName());
+./tree/src/TSelectorList.cxx:      Error("CheckDuplicateName","an object with the same name: %s is already in the list",obj->GetName());
+./tree/src/TTreeRow.cxx:      Error("TTreeRow", "original may not be 0");
+./tree/src/TTreeRow.cxx:      Error("TTreeRow", "original must be a TTreeRow");
+./tree/src/TTreeRow.cxx:      Error("IsValid", "row closed");
+./tree/src/TTreeRow.cxx:      Error("IsValid", "field index out of bounds");
+./tree/src/TTreeSQL.cxx:#include "TError.h"
+./tree/src/TTreeSQL.cxx:      Error("TTreeSQL","No TSQLServer specified");
+./tree/src/TTreeSQL.cxx:      Error("CheckBranch","%s has basket but no resultset yet",tb->GetName());
+./tree/src/TTreeSQL.cxx:   Int_t before = gErrorIgnoreLevel;
+./tree/src/TTreeSQL.cxx:   gErrorIgnoreLevel = kFatal;
+./tree/src/TTreeSQL.cxx:   gErrorIgnoreLevel = before;
+./tree/src/TTreeSQL.cxx:      Error("ConvertTypeName","TypeName (%s) not found",typeName.Data());
+./tree/src/TTreeSQL.cxx:      Error("CreateBasket","No TSQLServer specified");
+./tree/src/TTreeSQL.cxx:      Error("CreateBranch","No TSQLServer specified");
+./tree/src/TTreeSQL.cxx:      Error("CreateTable","No TSQLServer specified");
+./tree/src/TTreeSQL.cxx:               Error("CreateTable","May have failed");
+./tree/src/TTreeSQL.cxx:            Error("Fill","CheckBranch for %s failed",branch->GetName());
+./tree/src/TTreeSQL.cxx:      } else Error("GetColumnIndice","Error finding column %d %s",j,str.Data());
+./tree/src/TTreeResult.cxx:      Error("IsValid", "result set closed");
+./tree/src/TTreeResult.cxx:      Error("IsValid", "field index out of bounds");
+./tree/src/TTreeResult.cxx:      Error("GetFieldCount", "result set closed");
+./tree/src/TTreeResult.cxx:      Error("Next", "result set closed");
+./tree/src/TTreeResult.cxx:      Error("AddRow", "result set closed");
+./tree/src/TQueryResult.cxx:#include "TError.h"
+./tree/src/TEntryList.cxx:#include "TError.h"
+./tree/src/TEntryList.cxx:         Error("Add","Attempt to add object of class: %s to a %s",elist->ClassName(),this->ClassName());
+./tree/src/TEntryList.cxx:      ::Error("TEntryList::Relocate", "file '%s' cannot be open for updating", fn);
+./tree/src/TEntryList.cxx:                  ::Error("TEntryList::Relocate", "problems relocating '%s' ...", enl->GetName());
+./tree/src/TEntryList.cxx:      ::Error("TEntryList::Relocate", "file '%s' cannot be open for reading", fn);
+./tree/src/TEntryList.cxx:            ::Error("TEntryList::Scan", "object entry-list '%s' not found or not loadable!", key->GetName());
+./tree/src/TTreeCache.cxx:      Error("AddBranch", "unknown branch -> %s", bname);
+./tree/src/TTreeCache.cxx:      Error("DropBranch", "unknown branch -> %s", bname);
+./tree/src/TSelectorCint.cxx:#include "TError.h"
+./tree/src/TSelectorCint.cxx:      Error("SetFuncProto","cannot set %s(%s)",fname,argtype);
+./tree/src/TSelectorCint.cxx:      Error("ProcessCut","ProcessCut unavailable");
+./tree/src/TSelectorCint.cxx:      Error("ProcessFill","ProcessFill unavailable");
+./tree/src/TSelectorCint.cxx:      Error("Process","Process unavailable");
+./tree/src/TBranchSTL.cxx:#include "TError.h"
+./tree/src/TBranchSTL.cxx:            Error( "Fill", "The IO error while writing the indices!");
+./tree/src/TBranchSTL.cxx:               Error( "Fill", "The IO error while writing the branch %s!", br->GetName() );
+./tree/src/TBranchSTL.cxx:      Error( "Fill", "The IO error while writing the indices!");
+./tree/src/TBranchSTL.cxx:         Error( "Fill", "The IO error while writing the branch %s!", br->GetName() );
+./tree/src/TBranchSTL.cxx:         Error( "GetEntry", "Dictionary class not found for: %s", fContName.Data() );
+./tree/src/TBranchSTL.cxx:         Error( "GetEntry", "No collection proxy!"  );
+./tree/src/TBranchSTL.cxx:      Error( "GetEntry", "IO error! Unable to get the indices!"  );
+./tree/src/TBranchSTL.cxx:         Error( "GetEntry", "Index %d out of range, unable to find the branch, setting pointer to 0",
+./tree/src/TBranchSTL.cxx:            Error( "GetEntry", "No entry for index %d, setting pointer to 0", index );
+./tree/src/TBranchSTL.cxx:            Error( "GetEntry", "I/O error while getting entry for index %d, setting pointer to 0", index );
+./tree/src/TBranchSTL.cxx:               Error("GetEntry","Missing TClass for %s (%s)",elemBranch->GetName(),elemBranch->GetClassName());
+./tree/src/TBranchSTL.cxx:            Error("GetEntry","Missing CollectionProxy for %s (%s)",elemBranch->GetName(),elemBranch->GetClassName());
+./tree/src/TBranchSTL.cxx:            Error("GetExpectedType", "TBranchSTL did not find the TClass for %s", element->GetTypeNameBasic());
+./tree/src/TBranchSTL.cxx:         Error("GetExpectedType", "Did not find the type for %s",GetName());
+./doc/v522/index.html:<pre>Error in : Cannot create key without file </pre></li>
+./doc/v526/index.html:<li>kInternalError (-4) : Internal error (could not find the type corresponding to a data type number.</li>
+./doc/v528/index.html:   <li>DropIndexOnError    : if any of the underlying <tt>TTree</tt> object do no have a <tt>TTreeIndex</tt>,
+./doc/v528/index.html:   <li>AsIsIndexOnError [default]: In case of missing <tt>TTreeIndex</tt>, the resulting <tt>TTree</tt> index has gaps.</li>
+./doc/v528/index.html:   <li>BuildIndexOnError : If any of the underlying <tt>TTree</tt> object do no have a <tt>TTreeIndex</tt>,
+./doc/v528/index.html:   the resulting index had gaps (the default was similar to AsIsIndexOnError).   The new default is BuildIndexOnError  ; i.e.
+./treeviewer/inc/TTreeViewer.h:   void          DoError(int level, const char *location, const char *fmt, va_list va) const;
+./treeviewer/src/TParallelCoordVar.cxx:         Error("AddRange","You must create a selection before adding ranges.");
+./treeviewer/src/TParallelCoord.cxx:      Error("GetTree","Cannot load the tree: no tree defined!");
+./treeviewer/src/TParallelCoord.cxx:      Error("GetTree","Tree file name : \"%s\" does not exist (Are you in the correct directory?).",fTreeFileName.Data());
+./treeviewer/src/TParallelCoord.cxx:      Error("GetTree","while opening \"%s\".",fTreeFileName.Data());
+./treeviewer/src/TParallelCoord.cxx:         Error("GetTree","\"%s\" not found in \"%s\".", fTreeName.Data(), fTreeFileName.Data());
+./treeviewer/src/TParallelCoord.cxx:   if(!var) Error("RemoveVariable","\"%s\" not a variable",vartitle);
+./treeviewer/src/TTVLVContainer.cxx:      if (!fViewer) Error("TGSelectBox", "Must be started from viewer");
+./treeviewer/src/TTreeViewer.cxx:#include "TError.h"
+./treeviewer/src/TTreeViewer.cxx:   fOptions1D->AddEntry("Errors",          kOptions1D+4);       // "E"
+./treeviewer/src/TTreeViewer.cxx:   fOptions1D->AddEntry("Errors 1",        kOptions1D+5);       // "E1"
+./treeviewer/src/TTreeViewer.cxx:   fOptions1D->AddEntry("Errors 2",        kOptions1D+6);       // "E2"
+./treeviewer/src/TTreeViewer.cxx:   fOptions1D->AddEntry("Errors 3",        kOptions1D+7);       // "E3"
+./treeviewer/src/TTreeViewer.cxx:   fOptions1D->AddEntry("Errors 4",        kOptions1D+8);       // "E4"
+./treeviewer/src/TTreeViewer.cxx:void TTreeViewer::DoError(int level, const char *location, const char *fmt, va_list va) const
+./treeviewer/src/TTreeViewer.cxx:   TObject::DoError(level, location, fmt, va);
+./treeviewer/src/TTreeViewer.cxx:      TObject::Warning("DoError", "Error message string truncated...");
+./treeviewer/src/TTreeViewer.cxx:   if (level >= kSysError && level < kFatal)
+./treeviewer/src/TTreeViewer.cxx:      bp = Form("%s (%s)", buf, gSystem->GetError());
+./treeviewer/src/TTreeViewer.cxx:   if (level == kError)
+./treeviewer/src/TTreeViewer.cxx:      title = "Error";
+./treeviewer/src/TTreeViewer.cxx:   if (level == kSysError)
+./treeviewer/src/TTreeViewer.cxx:      title = "System Error";
+./treeplayer/inc/ROOT/TTreeProcessor.hxx:#ifndef ROOT_TError
+./treeplayer/inc/ROOT/TTreeProcessor.hxx:#include "TError.h"
+./treeplayer/inc/ROOT/TTreeProcessor.hxx:                  ::Error("TreeView constructor", "Cannot find any tree in file %s", fFileName.data());
+./treeplayer/inc/TTreePerfStats.h:class TGraphErrors;
+./treeplayer/inc/TTreePerfStats.h:   TGraphErrors *fGraphIO ;      //pointer to the graph with IO data
+./treeplayer/inc/TTreePerfStats.h:   TGraphErrors *fGraphTime ;    //pointer to the graph with timestamp info
+./treeplayer/inc/TTreePerfStats.h:   TGraphErrors    *GetGraphIO()     {return fGraphIO;}
+./treeplayer/inc/TTreePerfStats.h:   TGraphErrors    *GetGraphTime()   {return fGraphTime;}
+./treeplayer/inc/TTreePerfStats.h:   virtual void     SetGraphIO(TGraphErrors *gr) {fGraphIO = gr;}
+./treeplayer/inc/TTreePerfStats.h:   virtual void     SetGraphTime(TGraphErrors *gr) {fGraphTime = gr;}
+./treeplayer/inc/TTreeReaderArray.h:      virtual EReadStatus GetReadStatus() const { return fImpl ? fImpl->fReadStatus : kReadError; }
+./treeplayer/inc/TTreeReaderValue.h:         kSetupInternalError = -4, /// Some other error - hopefully the error message helps.
+./treeplayer/inc/TTreeReaderValue.h:         kReadError // problem reading data
+./treeplayer/inc/TTreeReaderValue.h:         Error("Get()", "Value reader not properly initialized, did you remember to call TTreeReader.Set(Next)Entry()?");
+./treeplayer/inc/TBranchProxy.h:#ifndef ROOT_TError
+./treeplayer/inc/TBranchProxy.h:#include "TError.h"
+./treeplayer/inc/TBranchProxy.h:                  ::Error("TBranchProxy::Read","%s",Form("Unable to initialize %s\n",fBranchName.Data()));
+./treeplayer/inc/TBranchProxy.h:                  ::Error("TBranchProxy::ReadEntries","%s",Form("Unable to initialize %s\n",fBranchName.Data()));
+./treeplayer/inc/TTreeReader.h:      kEntryChainSetupError, ///< problem in accessing a chain element, e.g. file without the tree
+./treeplayer/inc/TTreeReader.h:      kEntryChainFileError, ///< problem in opening a chain's file
+./treeplayer/inc/TTreeReader.h:      kEntryDictionaryError, ///< problem reading dictionary info from tree
+./treeplayer/inc/TTreeReader.h:   void SetTree(const char* /*keyname*/, TDirectory* /*dir = NULL*/ ) { Error("SetTree()", "Not Implemented!");};
+./treeplayer/inc/TTreeReader.h:   void SetChain(const char* /*keyname*/, TFileCollection* /*files*/ ) { Error("SetChain()", "Not Implemented!");};
+./treeplayer/src/TBranchProxyClassDescriptor.cxx:#include "TError.h"
+./treeplayer/src/TTreeProxyGenerator.cxx:#include "TError.h"
+./treeplayer/src/TTreeProxyGenerator.cxx:      ErrorHandler(kInfo,"TTreeProxyGenerator",va_(fmt), ap);
+./treeplayer/src/TTreeProxyGenerator.cxx:               Error("AnalyzeBranches","Ran out of branches when looking in branch %s, class %s",
+./treeplayer/src/TTreeProxyGenerator.cxx:               Error("AnalyzeBranches","Ran out of branches when looking in class %s, element %s",
+./treeplayer/src/TTreeProxyGenerator.cxx:               Error("AnalyzeBranch",
+./treeplayer/src/TTreeProxyGenerator.cxx:         Error("AnalyzeOldLeaf","TLeafObject not supported yet");
+./treeplayer/src/TTreeProxyGenerator.cxx:                     Error("AnalyzeTree",
+./treeplayer/src/TTreeProxyGenerator.cxx:                     Error("AnalyzeTree",
+./treeplayer/src/TTreeProxyGenerator.cxx:                     Error("AnalyzeTree",
+./treeplayer/src/TTreeProxyGenerator.cxx:            else Error("AnalyzeTree","missing class for %s.",branch->GetName());
+./treeplayer/src/TTreeProxyGenerator.cxx:            Error("AnalyzeTree",
+./treeplayer/src/TTreeProxyGenerator.cxx:         Error("AnalyzeTree","topdesc should not be null in TTreeProxyGenerator::AnalyzeElement.");
+./treeplayer/src/TTreeProxyGenerator.cxx:         Error("WriteProxy","No user script has been specified.");
+./treeplayer/src/TTreeProxyGenerator.cxx:         Error("WriteProxy","Can not find the user's script: %s",fScript.Data());
+./treeplayer/src/TTreeProxyGenerator.cxx:            Error("WriteProxy","Can not find the user's cut script: %s",fCutScript.Data());
+./treeplayer/src/TTreeProxyGenerator.cxx:         Error("WriteProxy","User's script (%s) has no extension! Nothing will be written.",scriptfunc.Data());
+./treeplayer/src/TTreeProxyGenerator.cxx:         Error("WriteProxy","Unable to open the file %s for writing.",
+./treeplayer/src/TBranchProxy.cxx:            Error("Setup","Not finding TClass for collecion for the data member %s seems no longer be in class %s",fDataMember.Data(),fParent->GetClass()->GetName());
+./treeplayer/src/TBranchProxy.cxx:         Error("Setup","Data member %s seems no longer be in class %s",fDataMember.Data(),pcl->GetName());
+./treeplayer/src/TBranchProxy.cxx:               Error("Setup","%s",Form("Negative offset %d for %s in %s",
+./treeplayer/src/TBranchProxy.cxx:            Error("Setup","%s",Form("Missing TClass object for %s\n",fClassName.Data()));
+./treeplayer/src/TSelectorDraw.cxx:                  Error("DrawSelect", "ncomma+1>maxvalues, ncomma=%d, maxvalues=%d", ncomma, maxvalues);
+./treeplayer/src/TSelectorDraw.cxx:                  Error("DrawSelect", "ncols > 3, ncols=%d", ncols);
+./treeplayer/src/TSelectorDraw.cxx:                  Error("DrawSelect", "ncols*3 < ncomma ncols=%d, ncomma=%d", ncols, ncomma);
+./treeplayer/src/TSelectorDraw.cxx:                           Error("DrawSelect", "j>8");
+./treeplayer/src/TSelectorDraw.cxx:               Error("Begin", "Two open or close brackets found, hname=%s", hname);
+./treeplayer/src/TSelectorDraw.cxx:                  Error("Begin", "You cannot use option same when no 3D view exists");
+./treeplayer/src/TFormLeafInfoReference.cxx:#include "TError.h"
+./treeplayer/src/TFormLeafInfoReference.cxx:      ::Error("TFormLeafInfoReference","No reference proxy for class %s availible",cl->GetName());
+./treeplayer/src/TFormLeafInfoReference.cxx:      ::Error("TFormLeafInfoReference","No reference proxy for class %s availible",fClass->GetName());
+./treeplayer/src/TTreeReaderGenerator.cxx:#include "TError.h"
+./treeplayer/src/TTreeReaderGenerator.cxx:               Error("AnalyzeBranches","Ran out of branches when looking in branch %s, class %s",
+./treeplayer/src/TTreeReaderGenerator.cxx:               Error("AnalyzeBranches","Ran out of branches when looking in class %s, element %s",
+./treeplayer/src/TTreeReaderGenerator.cxx:                        else Error("AnalyzeBranches", "Could not get type from collection %s in branch %s", cl->GetName(), branch->GetName());
+./treeplayer/src/TTreeReaderGenerator.cxx:               Error("AnalyzeBranch", "Unsupported type for %s (%d).", branch->GetName(), element->GetType());
+./treeplayer/src/TTreeReaderGenerator.cxx:               Error("AnalyzeBranch", "Arrays inside collections are not supported yet (branch: %s).", branch->GetName());
+./treeplayer/src/TTreeReaderGenerator.cxx:         Error("AnalyzeOldLeaf","TLeafObject not supported yet");
+./treeplayer/src/TTreeReaderGenerator.cxx:                     Error("AnalyzeTree",
+./treeplayer/src/TTreeReaderGenerator.cxx:                     Error("AnalyzeTree",
+./treeplayer/src/TTreeReaderGenerator.cxx:                  Error("AnalyzeTree", "Cannot analyze branch %s because it is not a TBranchElement.", branchName);
+./treeplayer/src/TTreeReaderGenerator.cxx:         Error("WriteSelector","cannot open output file %s", thead.Data());
+./treeplayer/src/TTreeReaderGenerator.cxx:         Error("WriteSelector","cannot open output file %s", tcimp.Data());
+./treeplayer/src/TFormLeafInfo.cxx:#include "TError.h"
+./treeplayer/src/TFormLeafInfo.cxx:            Error("GetValuePointer", "Type (%d) not yet supported\n", type);
+./treeplayer/src/TFormLeafInfo.cxx:      Error("ReadValue","Invalid data address: result will be wrong");
+./treeplayer/src/TFormLeafInfo.cxx:   Error("ReadValue","Should not be used in a TFormLeafInfoDirect");
+./treeplayer/src/TFormLeafInfo.cxx:   Error("GetValuePointer","This should never be called");
+./treeplayer/src/TFormLeafInfo.cxx:   Error("GetValuePointer","This should never be called");
+./treeplayer/src/TFormLeafInfo.cxx:   Error("GetLocalValuePointer","This should never be called");
+./treeplayer/src/TFormLeafInfo.cxx:   Error("GetLocalValuePointer","This should never be called");
+./treeplayer/src/TFormLeafInfo.cxx:   } else Error("Constructor","Called without a proper TStreamerElement");
+./treeplayer/src/TFormLeafInfo.cxx:   Error("GetValue","This should never be called");
+./treeplayer/src/TFormLeafInfo.cxx:   Error("ReadValue","This should never be called");
+./treeplayer/src/TFormLeafInfo.cxx:   Error("GetValue","This should never be called");
+./treeplayer/src/TFormLeafInfo.cxx:   Error("GetValue","This should never be called");
+./treeplayer/src/TTreePerfStats.cxx:#include "TGraphErrors.h"
+./treeplayer/src/TTreePerfStats.cxx:   fGraphIO  = new TGraphErrors(0);
+./treeplayer/src/TTreePerfStats.cxx:   fGraphTime = new TGraphErrors(0);
+./treeplayer/src/TTreePerfStats.cxx:      fGraphIO->SetPointError(np,0.001,1e-9*len);
+./treeplayer/src/TTreePerfStats.cxx:      fGraphTime->SetPointError(np,0.001,dtime);
+./treeplayer/src/TTreePerfStats.cxx:   out<<"   TGraphErrors *psGraphIO = new TGraphErrors("<<npoints<<");"<<std::endl;
+./treeplayer/src/TTreePerfStats.cxx:      out<<"   psGraphIO->SetPointError("<<i<<",0,"<<fGraphIO->GetEY()[i]<<");"<<std::endl;
+./treeplayer/src/TTreePerfStats.cxx:   out<<"   TGraphErrors *psGraphTime = new TGraphErrors("<<npoints<<");"<<std::endl;
+./treeplayer/src/TTreePerfStats.cxx:      out<<"   psGraphTime->SetPointError("<<i<<",0,"<<fGraphTime->GetEY()[i]<<");"<<std::endl;
+./treeplayer/src/TSelectorEntries.cxx:      Error("Terminate","fSelectedRows is missing in fOutput");
+./treeplayer/src/TTreeIndex.cxx:      Error("TreeIndex","Cannot build a TreeIndex with a Tree having no entries");
+./treeplayer/src/TTreeIndex.cxx:      Error("TreeIndex","Cannot build the index with major=%s, minor=%s",fMajorName.Data(), fMinorName.Data());
+./treeplayer/src/TTreeIndex.cxx:      Error("TreeIndex","Cannot build the index with major=%s, minor=%s",fMajorName.Data(), fMinorName.Data());
+./treeplayer/src/TTreeIndex.cxx:   //   Error("TreeIndex","Cannot build the index with major=%s, minor=%s that cannot be arrays",fMajorName.Data(), fMinorName.Data());
+./treeplayer/src/TTreeIndex.cxx:         Error("Append","Can only Append a TTreeIndex to a TTreeIndex but got a %s",
+./treeplayer/src/TTreeReaderArray.cxx:            fReadStatus = TTreeReaderValueBase::kReadError;
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TClonesReader::GetCA()", "Read error in TBranchProxy.");
+./treeplayer/src/TTreeReaderArray.cxx:            fReadStatus = TTreeReaderValueBase::kReadError;
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TSTLReader::GetCP()", "Read error in TBranchProxy.");
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TSTLReader::GetCP()", "Logic error, proxy object not set in TBranchProxy.");
+./treeplayer/src/TTreeReaderArray.cxx:            fReadStatus = TTreeReaderValueBase::kReadError;
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TCollectionLessSTLReader::GetCP()", "Read error in TBranchProxy.");
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TCollectionLessSTLReader::GetCP()", "Logic error, proxy object not set in TBranchProxy.");
+./treeplayer/src/TTreeReaderArray.cxx:            fReadStatus = TTreeReaderValueBase::kReadError;
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TObjectArrayReader::GetCP()", "Read error in TBranchProxy.");
+./treeplayer/src/TTreeReaderArray.cxx:               Error("TObjectArrayReader::At()", "Cannot get class info from branch proxy.");
+./treeplayer/src/TTreeReaderArray.cxx:            fReadStatus = TTreeReaderValueBase::kReadError;
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TBasicTypeArrayReader::GetCP()", "Read error in TBranchProxy.");
+./treeplayer/src/TTreeReaderArray.cxx:         return myLeaf ? myLeaf->GetLen() : 0; // Error will be printed by GetLeaf
+./treeplayer/src/TTreeReaderArray.cxx:            if (!myLeaf) return 0; // Error will be printed by GetLeaf
+./treeplayer/src/TTreeReaderArray.cxx:   fSetupStatus = kSetupInternalError; // Fallback; set to something concrete below.
+./treeplayer/src/TTreeReaderArray.cxx:      Error("TTreeReaderArrayBase::CreateProxy()", "TTreeReader object not set / available for branch %s!",
+./treeplayer/src/TTreeReaderArray.cxx:      Error("TTreeReaderArrayBase::CreateProxy()", "The template argument type T of %s accessing branch %s (which contains data of type %s) is not known to ROOT. You will need to create a dictionary for it.",
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TTreeReaderArrayBase::CreateProxy()", "The tree does not have a branch called %s. You could check with TTree::Print() for available branches.", fBranchName.Data());
+./treeplayer/src/TTreeReaderArray.cxx:               Error("TTreeReaderArrayBase::CreateProxy()", "The tree does not have a branch, nor a sub-branch called %s. You could check with TTree::Print() for available branches.", fBranchName.Data());
+./treeplayer/src/TTreeReaderArray.cxx:                  Error("TTreeReaderArrayBase::CreateProxy()", "Failed to get the dictionary for %s.", myLeaf->GetTypeName());
+./treeplayer/src/TTreeReaderArray.cxx:                  Error("TTreeReaderArrayBase::CreateProxy()", "Leaf of type %s cannot be read by TTreeReaderValue<%s>.", myLeaf->GetTypeName(), fDict->GetName());
+./treeplayer/src/TTreeReaderArray.cxx:         Error("TTreeReaderArrayBase::CreateProxy()", "The tree does not have a branch called %s. You could check with TTree::Print() for available branches.", fBranchName.Data());
+./treeplayer/src/TTreeReaderArray.cxx:         Error("TTreeReaderArrayBase::CreateContentProxy()", "The branch %s contains data of type %s, which should be accessed through a TTreeReaderValue< %s >.",
+./treeplayer/src/TTreeReaderArray.cxx:         if (fSetupStatus == kSetupInternalError)
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TTreeReaderArrayBase::CreateContentProxy()", "Cannot determine the type contained in the collection of branch %s. That's weird - please report!",
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TTreeReaderArrayBase::CreateContentProxy()", "The branch %s contains data of type %s, which does not have a dictionary.",
+./treeplayer/src/TTreeReaderArray.cxx:            if (fSetupStatus == kSetupInternalError)
+./treeplayer/src/TTreeReaderArray.cxx:         Error("TTreeReaderArrayBase::CreateContentProxy()", "The branch %s contains data of type %s. It cannot be accessed by a TTreeReaderArray<%s>",
+./treeplayer/src/TTreeReaderArray.cxx:         if (fSetupStatus == kSetupInternalError || fSetupStatus >= 0)
+./treeplayer/src/TTreeReaderArray.cxx:         if (fSetupStatus == kSetupInternalError)
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TTreeReaderArrayBase::CreateProxy()",
+./treeplayer/src/TTreeReaderArray.cxx:            fSetupStatus = kSetupInternalError;
+./treeplayer/src/TTreeReaderArray.cxx:         Error("TTreeReaderArrayBase::CreateProxy", "Failed to get the top leaf from the branch");
+./treeplayer/src/TTreeReaderArray.cxx:      if (fSetupStatus == kSetupInternalError)
+./treeplayer/src/TTreeReaderArray.cxx:      Error("TTreeReaderArrayBase::CreateProxy", "Support for branches of type TBranchClones not implemented");
+./treeplayer/src/TTreeReaderArray.cxx:      fSetupStatus = kSetupInternalError;
+./treeplayer/src/TTreeReaderArray.cxx:      Error("TTreeReaderArrayBase::CreateProxy", "Support for branches of type TBranchObject not implemented");
+./treeplayer/src/TTreeReaderArray.cxx:      fSetupStatus = kSetupInternalError;
+./treeplayer/src/TTreeReaderArray.cxx:      Error("TTreeReaderArrayBase::CreateProxy", "Support for branches of type TBranchSTL not implemented");
+./treeplayer/src/TTreeReaderArray.cxx:      fSetupStatus = kSetupInternalError;
+./treeplayer/src/TTreeReaderArray.cxx:      Error("TTreeReaderArrayBase::CreateProxy", "Support for branches of type TBranchRef not implemented");
+./treeplayer/src/TTreeReaderArray.cxx:      fSetupStatus = kSetupInternalError;
+./treeplayer/src/TTreeReaderArray.cxx:               Error("TTreeReaderArrayBase::GetBranchContentDataType()", "Could not get value class.");
+./treeplayer/src/TTreeReaderArray.cxx:               Error("TTreeReaderArrayBase::GetBranchContentDataType()", "Cannot determine STL collection type of %s stored in branch %s", brElement->GetClassName(), branch->GetName());
+./treeplayer/src/TTreeReaderArray.cxx:               Error("TTreeReaderArrayBase::GetBranchContentDataType()", "The branch %s contains a data type %d for which the dictionary cannot be retrieved.",
+./treeplayer/src/TTreeReaderArray.cxx:               Error("TTreeReaderArrayBase::GetBranchContentDataType()", "The branch %s contains data of type %s for which the dictionary does not exist. It's needed.",
+./treeplayer/src/TTreeReaderArray.cxx:                  Error("TTreeReaderArrayBase::GetBranchDataType()", "Could not get class from branch element.");
+./treeplayer/src/TTreeReaderArray.cxx:                  Error("TTreeReaderArrayBase::GetBranchDataType()", "Could not get collection proxy from STL class");
+./treeplayer/src/TTreeReaderArray.cxx:                  Error("TTreeReaderArrayBase::GetBranchDataType()", "Could not get valueClass from collectionProxy.");
+./treeplayer/src/TTreeReaderArray.cxx:                  Error("TTreeReaderArrayBase::GetBranchContentDataType()", "Failed to get type from proxy, unable to check type");
+./treeplayer/src/TTreeReaderArray.cxx:         Error("TTreeReaderArrayBase::GetBranchContentDataType()", "The branch %s was created using a leaf list and cannot be represented as a C++ type. Please access one of its siblings using a TTreeReaderArray:", branch->GetName());
+./treeplayer/src/TTreeReaderArray.cxx:            Error("TTreeReaderArrayBase::GetBranchContentDataType()", "   %s.%s", branch->GetName(), leaf->GetName());
+./treeplayer/src/TTreeReaderArray.cxx:      Error("TTreeReaderArrayBase::GetBranchContentDataType()", "The branch %s is a TBranchRef and cannot be represented as a C++ type.", branch->GetName());
+./treeplayer/src/TTreeReaderArray.cxx:      Error("TTreeReaderArrayBase::GetBranchContentDataType()", "The branch %s is of type %s - something that is not handled yet.", branch->GetName(), branch->IsA()->GetName());
+./treeplayer/src/TTreeGeneratorBase.cxx:         else Error("AnalyzeBranch", "Missing parent for %s.", branch->GetName());
+./treeplayer/src/TTreeGeneratorBase.cxx:         Error("AnalyzeBranch",
+./treeplayer/src/TTreeTableInterface.cxx:#include "TError.h"
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface", "No tree supplied");
+./treeplayer/src/TTreeTableInterface.cxx:         Error("TTreeTableInterface", "No leaves in Tree");
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface", "Row requested does not exist");
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface", "Column requested does not exist");
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface", "Row requested does not exist");
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface", "Column requested does not exist");
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface", "Row requested does not exist");
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface", "Column requested does not exist");
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface::AddColumn", "Only 1 expression allowed.");
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface::AddColumn", "Please specify a "
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface::RemoveColumn", "Please specify a "
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface::RemoveColumn", "Can't remove last column");
+./treeplayer/src/TTreeTableInterface.cxx:      Error("TTreeTableInterface::SetFormula", "Please specify a "
+./treeplayer/src/TTreeReader.cxx:      std::cerr << "Error " << value->GetSetupStatus()
+./treeplayer/src/TTreeReader.cxx:            std::cerr << "Error: TTreeReader has not loaded any data yet!\n";
+./treeplayer/src/TTreeReader.cxx:            std::cerr << "Error: TTreeReader cannot find a tree names \"MyTree\"!\n";
+./treeplayer/src/TTreeReader.cxx:            std::cerr << "Error: The entry number doe not exist\n";
+./treeplayer/src/TTreeReader.cxx:         kEntryChainSetupError:
+./treeplayer/src/TTreeReader.cxx:            std::cerr << "Error: TTreeReader cannot access a chain element, e.g. file without the tree\n";
+./treeplayer/src/TTreeReader.cxx:         kEntryChainFileError:
+./treeplayer/src/TTreeReader.cxx:            std::cerr << "Error: TTreeReader cannot open a chain element, e.g. missing file\n";
+./treeplayer/src/TTreeReader.cxx:         kEntryDictionaryError:
+./treeplayer/src/TTreeReader.cxx:            std::cerr << "Error: TTreeReader cannot find the dictionary for some data\n";
+./treeplayer/src/TTreeReader.cxx:      Error("TTreeReader", "TTree is NULL!");
+./treeplayer/src/TTreeReader.cxx:            fEntryStatus = kEntryDictionaryError;
+./treeplayer/src/TTreeReader.cxx:      Error("DeregisterValueReader", "Cannot find reader of type %s for branch %s", reader->GetDerivedTypeName(), reader->fBranchName.Data());
+./treeplayer/src/TChainIndex.cxx:#include "TError.h"
+./treeplayer/src/TChainIndex.cxx:      Error("TChainIndex", "Cannot create a TChainIndex."
+./treeplayer/src/TChainIndex.cxx:            Error("TChainIndex","Tree in file %s has an index built with majorname=%s and minorname=%s",chain->GetTree()->GetCurrentFile()->GetName(),index->GetMajorName(),index->GetMinorName());
+./treeplayer/src/TChainIndex.cxx:         Error("TChainIndex", "Error creating a tree index on a tree in the chain");
+./treeplayer/src/TChainIndex.cxx:         Error("TChainIndex", "The underlying TTree must have a TTreeIndex but has a %s.",
+./treeplayer/src/TChainIndex.cxx:         Error("TChainIndex", "The indices in files of this chain aren't sorted.");
+./treeplayer/src/TChainIndex.cxx:         Error("Append", "The given index is not a TTreeIndex but a %s",
+./treeplayer/src/TChainIndex.cxx:            Error("Append", "The indices in files of this chain aren't sorted.");
+./treeplayer/src/TChainIndex.cxx:      // Error("GetEntryNumberWithBestIndex","no index found");
+./treeplayer/src/TChainIndex.cxx:      // Error("GetEntryNumberWithIndex","no index found");
+./treeplayer/src/TBranchProxyDescriptor.cxx:#include "TError.h"
+./treeplayer/src/TTreeReaderValue.cxx:      fReadStatus = kReadError;
+./treeplayer/src/TTreeReaderValue.cxx:            fReadStatus = kReadError;
+./treeplayer/src/TTreeReaderValue.cxx:            Error("TTreeReaderValueBase::GetLeaf()", "Unable to get the tree from the TTreeReader");
+./treeplayer/src/TTreeReaderValue.cxx:            fReadStatus = kReadError;
+./treeplayer/src/TTreeReaderValue.cxx:            Error("TTreeReaderValueBase::GetLeaf()", "Unable to get the branch from the tree");
+./treeplayer/src/TTreeReaderValue.cxx:            Error("TTreeReaderValueBase::GetLeaf()", "Failed to get the leaf from the branch");
+./treeplayer/src/TTreeReaderValue.cxx:      Error("TTreeReaderValueBase::GetLeaf()", "We are not reading a leaf");
+./treeplayer/src/TTreeReaderValue.cxx:         fReadStatus = kReadError;
+./treeplayer/src/TTreeReaderValue.cxx:         Error("TTreeReaderValueBase::GetAddress()", "Unable to get the leaf");
+./treeplayer/src/TTreeReaderValue.cxx:   fSetupStatus = kSetupInternalError; // Fallback; set to something concrete below.
+./treeplayer/src/TTreeReaderValue.cxx:      Error("TTreeReaderValueBase::CreateProxy()", "TTreeReader object not set / available for branch %s!",
+./treeplayer/src/TTreeReaderValue.cxx:      Error("TTreeReaderValueBase::CreateProxy()", "The template argument type T of %s accessing branch %s (which contains data of type %s) is not known to ROOT. You will need to create a dictionary for it.",
+./treeplayer/src/TTreeReaderValue.cxx:                     Error("TTreeReaderValueBase::CreateProxy", "Wrong data type %s", finalDataType ? finalDataType->GetName() : elementClass ? elementClass->GetName() : "UNKNOWN");
+./treeplayer/src/TTreeReaderValue.cxx:               Error("TTreeReaderValueBase::CreateProxy()", "The tree does not have a branch called %s. You could check with TTree::Print() for available branches.", fBranchName.Data());
+./treeplayer/src/TTreeReaderValue.cxx:               Error("TTreeReaderValueBase::CreateProxy()",
+./treeplayer/src/TTreeReaderValue.cxx:                  Error("TTreeReaderValueBase::CreateProxy()",
+./treeplayer/src/TTreeReaderValue.cxx:         Error("TTreeReaderValueBase::CreateProxy()", "The tree does not have a branch called %s. You could check with TTree::Print() for available branches.", fBranchName.Data());
+./treeplayer/src/TTreeReaderValue.cxx:         Error("TTreeReaderValueBase::CreateProxy()", "The branch %s contains data of type %s, which does not have a dictionary.",
+./treeplayer/src/TTreeReaderValue.cxx:            Error("TTreeReaderValueBase::CreateProxy()",
+./treeplayer/src/TTreeReaderValue.cxx:         Error("TTreeReaderValueBase::GetBranchDataType()", "Must use TTreeReaderArray to access a member of an object that is stored in a collection.");
+./treeplayer/src/TTreeReaderValue.cxx:         Error("TTreeReaderValueBase::GetBranchDataType()", "Unknown type and class combination: %i, %s", brElement->GetType(), brElement->GetClassName());
+./treeplayer/src/TTreeReaderValue.cxx:         Error("TTreeReaderValueBase::GetBranchDataType()", "The branch %s was created using a leaf list and cannot be represented as a C++ type. Please access one of its siblings using a TTreeReaderArray:", branch->GetName());
+./treeplayer/src/TTreeReaderValue.cxx:            Error("TTreeReaderValueBase::GetBranchDataType()", "   %s.%s", branch->GetName(), leaf->GetName());
+./treeplayer/src/TTreeReaderValue.cxx:      Error("TTreeReaderValueBase::GetBranchDataType()", "The branch %s is a TBranchRef and cannot be represented as a C++ type.", branch->GetName());
+./treeplayer/src/TTreeReaderValue.cxx:      Error("TTreeReaderValueBase::GetBranchDataType()", "The branch %s is of type %s - something that is not handled yet.", branch->GetName(), branch->IsA()->GetName());
+./treeplayer/src/TSimpleAnalysis.cxx:#include "TError.h"
+./treeplayer/src/TSimpleAnalysis.cxx:      return "Error: missing '='";
+./treeplayer/src/TSimpleAnalysis.cxx:      return "Error: no histName found";
+./treeplayer/src/TSimpleAnalysis.cxx:      return "Error: no expression found";
+./treeplayer/src/TSimpleAnalysis.cxx:         return "Error: missing cut expression after 'if'";
+./treeplayer/src/TSimpleAnalysis.cxx:            ::Error("TSimpleAnalysis::Analyze", "Multiple trees inside %s", firstInputFile.c_str());
+./treeplayer/src/TSimpleAnalysis.cxx:      ::Error("TSimpleAnalysis::Analyze", "No tree inside %s", firstInputFile.c_str());
+./treeplayer/src/TSimpleAnalysis.cxx:         ::Error("TSimpleAnalysis::Run", "Load failure in file %s: %s",
+./treeplayer/src/TSimpleAnalysis.cxx:      int oldLevel = gErrorIgnoreLevel;
+./treeplayer/src/TSimpleAnalysis.cxx:      gErrorIgnoreLevel = kFatal;
+./treeplayer/src/TSimpleAnalysis.cxx:      gErrorIgnoreLevel = oldLevel;
+./treeplayer/src/TSimpleAnalysis.cxx:      ::Error("TSimpleAnalysis::Run", "Impossible to create %s", fOutputFile.c_str());
+./treeplayer/src/TSimpleAnalysis.cxx:   // Error if the input file does not exist
+./treeplayer/src/TSimpleAnalysis.cxx:      ::Error("TSimpleAnalysis::Configure", "File %s not found", fConfigFile.c_str());
+./treeplayer/src/TSimpleAnalysis.cxx:         ::Error("TSimpleAnalysis::Configure", "%s in %s:%d", errMessage.c_str(),
+./treeplayer/src/TTreeFormula.cxx:#include "TError.h"
+./treeplayer/src/TTreeFormula.cxx:            Error("TTreeFormula",
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable","The 2nd arguments in %s can not be an array (%s,%d)!",
+./treeplayer/src/TTreeFormula.cxx:                  Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:                  Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:/// -  -2  Error: some information is missing (message already printed)
+./treeplayer/src/TTreeFormula.cxx:/// -  -1  Error: Syntax is incorrect (message already printed)
+./treeplayer/src/TTreeFormula.cxx:            Error("DefinedVariable","Missing StreamerInfo for %s.  We will be unable to read!",
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable","Missing StreamerInfo for %s."
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable", "Address not set when the type of the branch is negative for for %s.  We will be unable to read!", mom->GetName());
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable","Failed to access class type of reference target (%s)",element->GetName());
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable","%s does not inherit from %s.  Casting not possible!",
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable","Can not call '%s' with a class",work);
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable","Class probably unavailable:%s",cl->GetName());
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:                  Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:                  Error("DefinedVariable","Unknown method:%s in %s",right,cl->GetName());
+./treeplayer/src/TTreeFormula.cxx:                     Error("DefineVariable","Method %s from %s has an impossible return type %d",
+./treeplayer/src/TTreeFormula.cxx:                        Error("DefinedVariable","Unimplemented usage of ClonesArray");
+./treeplayer/src/TTreeFormula.cxx:                        Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:                        Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:               if (cl) Error("DefinedVariable","%s is not a datamember of %s",work,cl->GetName());
+./treeplayer/src/TTreeFormula.cxx:                        Error("DefinedVariable","Failed to access class type of reference target (%s)",element->GetName());
+./treeplayer/src/TTreeFormula.cxx:                     Error("DefinedVariable","Failed to access class type of reference target (%s)",element->GetName());
+./treeplayer/src/TTreeFormula.cxx:            Error("DefinedVariable","Unmatched paranthesis in %s",fullExpression);
+./treeplayer/src/TTreeFormula.cxx:                        Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:                     Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:            //   Error("DefinedVariable","Need a TLeafObject to call a function!");
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable", "Unexpected control flow!");
+./treeplayer/src/TTreeFormula.cxx:            Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:            Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:            //Error("DefinedVariable","Bracket unbalanced");
+./treeplayer/src/TTreeFormula.cxx:            Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:                  Error("Compile", " Bad numerical expression : \"%s\"",thisAlias.Data());
+./treeplayer/src/TTreeFormula.cxx:                  Error("Compile", " Part of the Variable \"%s\" exists but some of it is not accessible or useable",thisAlias.Data());
+./treeplayer/src/TTreeFormula.cxx:               Error("DefinedVariable",
+./treeplayer/src/TTreeFormula.cxx:         Error("DefinedVariable","the branch \"%s\" has to be enabled to be used",leaf->GetBranch()->GetName());
+./treeplayer/src/TTreeFormula.cxx:         Error("DefinedVariable","Found a TCutG without leaf information (%s)",
+./treeplayer/src/TTreeFormula.cxx:         Error("BranchHasMethod","A TClonesArray was stored in a branch type no yet support (i.e. neither TBranchObject nor TBranchElement): %s",branch->IsA()->GetName());
+./treeplayer/src/TTreeFormula.cxx:                     Error("EvalInstance","Index %s is out of bound (%d) in formula %s",
+./treeplayer/src/TTreeFormula.cxx:                  Error("EvalInstance","Index %s is out of bound (%d) in formula %s",
+./treeplayer/src/TTreeFormula.cxx:                        Error("EvalInstance","Index %s is out of bound (%d/%d) in formula %s",
+./treeplayer/src/TTreeFormula.cxx:                     Error("EvalInstance","Index %s is of out bound (%d/%d) in formula %s",
+./treeplayer/src/TRefProxy.cxx:#include "TError.h"
+./treeplayer/src/TTreeDrawArgsParser.cxx:            Error("ParseName", "expected \')\'");
+./treeplayer/src/TTreeDrawArgsParser.cxx:            Error("ParseName", "impossible value for *q!");
+./treeplayer/src/TTreeDrawArgsParser.cxx:      Error("ParseVarExp", "error parsing variable expression");
+./treeplayer/src/TTreeDrawArgsParser.cxx:      Error("GetParameter","wrong arguments");
+./treeplayer/src/TTreeDrawArgsParser.cxx:      Error("Specified", "wrong parameter %d; fgMaxParameters: %d", num, fgMaxParameters);
+./treeplayer/src/TTreeDrawArgsParser.cxx:      Error("GetVarExp", "wrong Parameters %d; fDimension = %d", num, fDimension);
+./treeplayer/src/TTreePlayer.cxx:         Error("BuildIndex", "Creating a TChainIndex unsuccessful - switching to TTreeIndex");
+./treeplayer/src/TTreePlayer.cxx:         Error("DrawSelect",
+./treeplayer/src/TTreePlayer.cxx:         Error("DrawSelect",
+./treeplayer/src/TTreePlayer.cxx:      Error("MakeClass","cannot open output file %s", thead.Data());
+./treeplayer/src/TTreePlayer.cxx:      Error("MakeClass","cannot open output file %s", tcimp.Data());
+./treeplayer/src/TTreePlayer.cxx:         Error("MakeClass","The branch named %s (full path name: %s) is hidden by another branch of the same name and its data will not be loaded.",branch->GetName(),R__GetBranchPointerName(leaf,kFALSE).Data());
+./treeplayer/src/TTreePlayer.cxx:      Error("MakeCode","cannot open output file %s", tfile.Data());
+./treeplayer/src/TTreePlayer.cxx:      Error("MakeProxy","A file name for the user script is required");
+./treeplayer/src/TTreePlayer.cxx:         Error("Scan","Can not open file for redirection");
+./treeplayer/src/TTreePlayer.cxx:/// -  option = "E" Perform better Errors estimation using Minos technique
+./treeplayer/src/TTreePlayer.cxx:   if (!fitfunc) { Error("UnbinnedFit", "Unknown function: %s",funcname); return 0; }
+./treeplayer/src/TTreePlayer.cxx:   if (npar <=0) { Error("UnbinnedFit", "Illegal number of parameters = %d",npar); return 0; }
+./treeplayer/src/TTreePlayer.cxx:   if (opt.Contains("E")) fitOption.Errors  = 1;
+./treeplayer/src/TTreePlayer.cxx:      Error("UnbinnedFit", "Cannot fit: no entries selected");
+./treeplayer/src/TTreeFormulaManager.cxx:#include "TError.h"
+./treeplayer/src/TTreeFormulaManager.cxx:            Error("GetNdata","a dimension is still negative!");
+./treeplayer/src/TTreeFormulaManager.cxx:            Error("Sync","Unexpected case!");

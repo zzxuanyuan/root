@@ -148,7 +148,7 @@ int main(int argc, char **argv)
    Int_t printev = 100;
    if (arg5 < 100) printev = 1000;
    if (arg5 < 10)  printev = 10000;
-   gDebug = 1;//##
+//   gDebug = 1;//##
 //         Read case
    if (read) {
       if (netf) {
@@ -163,18 +163,18 @@ int main(int argc, char **argv)
       if (read == 1) {  //read sequential
          //by setting the read cache to -1 we set it to the AutoFlush value when writing
          Int_t cachesize = -1;
-         printf("Set Parallel Unzip!\n");//##
+//         printf("Set Parallel Unzip!\n");//##
          if (punzip) tree->SetParallelUnzip();
-         printf("Set Cache Size!\n");//##
+//         printf("Set Cache Size!\n");//##
          tree->SetCacheSize(cachesize);
-         printf("Set Learning Entries!\n");//##
+//         printf("Set Learning Entries!\n");//##
          tree->SetCacheLearnEntries(1); //one entry is sufficient to learn
-         printf("Set Cache Entry Range!\n");//##
+//         printf("Set Cache Entry Range!\n");//##
          tree->SetCacheEntryRange(0,nevent);
 //         TTreeCache *tcache = tree->GetReadCache(hfile);
 //         tcache->FillBuffer();
          for (ev = 0; ev < nevent; ev++) {
-            printf("Load Tree!\n");//##
+//            printf("Load Tree!\n");//##
             tree->LoadTree(ev);  //this call is required when using the cache
             if (ev%printev == 0) {
                tnew = timer.RealTime();
@@ -182,7 +182,7 @@ int main(int argc, char **argv)
                told=tnew;
                timer.Continue();
             }
-            printf("Get Entry!\n");//##
+//            printf("Get Entry!\n");//##
             nb += tree->GetEntry(ev);        //read complete event in memory
          }
       } else {    //read random

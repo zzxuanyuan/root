@@ -354,16 +354,19 @@ Int_t TBasket::ReadBasketBuffersUncompressedCase()
 
 Int_t TBasket::ReadBasketBuffersUnzip(char* buffer, Int_t size, Bool_t mustFree, TFile* file)
 {
+   printf("1 GetSeekKey()=%lld\n", GetSeekKey());//##
    if (fBufferRef) {
+      printf("in if, mustFree = %d\n", mustFree);//##
       fBufferRef->SetBuffer(buffer, size, mustFree);
       fBufferRef->SetReadMode();
       fBufferRef->Reset();
    } else {
+      printf("in else\n");//##
       fBufferRef = new TBufferFile(TBuffer::kRead, size, buffer, mustFree);
    }
    fBufferRef->SetParent(file);
-
    Streamer(*fBufferRef);
+   printf("2 GetSeekKey()=%lld\n", GetSeekKey());//##
 
    if (IsZombie()) {
       return -1;
@@ -430,43 +433,70 @@ void inline TBasket::InitializeCompressedBuffer(Int_t len, TFile* file)
 
 Int_t TBasket::ReadBasketBuffers(Long64_t pos, Int_t len, TFile *file)
 {
+//   Int_t tsize = fBufferRef->BufferSize();//##
+//   char *tbuff = fBufferRef->Buffer();//##
+//   Int_t tlen = fBufferRef->Length();//##
+//   printf("In TBasket::ReadBasketBuffers, tbuff begin is : \n");//##
+//   for(Int_t i = 0; i < tlen; ++i) {
+//      printf("%x ", tbuff[i]);//##
+//   }
+//   printf("\n");//##
+//   printf("In TBasket::ReadBasketBuffers, tbuff fBufCur is : \n");//##
+//   for(Int_t i = tlen; i < tlen+tsize; ++i) {
+//      printf("%x ", tbuff[i]);//##
+//   }
+//   printf("\n");//##
    if(!fBranch->GetDirectory()) {
       return -1;
    }
-   printf("1. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
+//   printf("1. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
    Bool_t oldCase;
    char *rawUncompressedBuffer, *rawCompressedBuffer;
    Int_t uncompressedBufferLen;
 
-   printf("1.1. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
+//   printf("1.1. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
    // See if the cache has already unzipped the buffer for us.
    TFileCacheRead *pf = nullptr;
    {
       R__LOCKGUARD_IMT2(gROOTMutex); // Lock for parallel TTree I/O
       pf = file->GetCacheRead(fBranch->GetTree());
    }
-   printf("1.2. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
+//   Int_t tsize = fBufferRef->BufferSize();//##
+//   char *tbuff = fBufferRef->Buffer();//##
+//   Int_t tlen = fBufferRef->Length();//##
+//   printf("In TBasket::ReadBasketBuffers, tbuff begin is : \n");//##
+//   for(Int_t i = 0; i < tlen; ++i) {
+//      printf("%x ", tbuff[i]);//##
+//   }
+//   printf("\n");//##
+//   printf("In TBasket::ReadBasketBuffers, tbuff fBufCur is : \n");//##
+//   for(Int_t i = tlen; i < tlen+tsize; ++i) {
+//      printf("%x ", tbuff[i]);//##
+//   }
+//   printf("\n");//##
+//   printf("1.2. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
    if (pf) {
       Int_t res = -1;
       Bool_t free = kTRUE;
 //      char *buffer;
       char *buffer = nullptr;
       printf("1.3. fBranch->GetBasketSeek[0] = %lld, res=%d\n", fBranch->GetBasketSeek(0),res);//##
-      fBranch->Print();//##
+//      fBranch->Print();//##
       printf("1.3-1.4. pos = %lld\n", pos);//##
       res = pf->GetUnzipBuffer(&buffer, pos, len, &free);
       printf("1.4. fBranch->GetBasketSeek[0] = %lld, res=%d\n", fBranch->GetBasketSeek(0),res);//##
-      fBranch->Print();//##
+//      fBranch->Print();//##
       if (R__unlikely(res >= 0)) {
          len = ReadBasketBuffersUnzip(buffer, res, free, file);
-         printf("1.5. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
+         printf("len = %d, GetSeekKey()=%lld\n", len, GetSeekKey());//##
+//         printf("1.5. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
          // Note that in the kNotDecompressed case, the above function will return 0;
          // In such a case, we should stop processing
          if (len <= 0) return -len;
          goto AfterBuffer;
       }
    }
-   printf("2. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
+//   printf("2. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
 
    // Determine which buffer to use, so that we can avoid a memcpy in case of
    // the basket was not compressed.
@@ -525,12 +555,12 @@ Int_t TBasket::ReadBasketBuffers(Long64_t pos, Int_t len, TFile *file)
       }
       else gPerfStats = temp;
    }
-   printf("3. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
+//   printf("3. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
    Streamer(*readBufferRef);
    if (IsZombie()) {
       return 1;
    }
-   printf("4. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
+//   printf("4. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
 
    rawCompressedBuffer = readBufferRef->Buffer();
 
@@ -621,11 +651,11 @@ Int_t TBasket::ReadBasketBuffers(Long64_t pos, Int_t len, TFile *file)
       // Nothing is compressed - copy over wholesale.
       memcpy(rawUncompressedBuffer, rawCompressedBuffer, len);
    }
-   printf("5. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
+//   printf("5. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
 
 AfterBuffer:
 
-   printf("5.5. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
+//   printf("5.5. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
    fBranch->GetTree()->IncrementTotalBuffers(fBufferSize);
 
    // Read offsets table if needed.
@@ -634,6 +664,7 @@ AfterBuffer:
    }
    delete [] fEntryOffset;
    fEntryOffset = 0;
+//   printf("fLast = %d\n", fLast);//##
    fBufferRef->SetBufferOffset(fLast);
    fBufferRef->ReadArray(fEntryOffset);
    if (!fEntryOffset) {
@@ -652,7 +683,7 @@ AfterBuffer:
       // fBufferRef->BufferSize()
       fBufferRef->ReadArray(fDisplacement);
    }
-   printf("6. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
+//   printf("6. fBranch->GetBasketSeek[0] = %lld\n", fBranch->GetBasketSeek(0));//##
 
    return 0;
 }
@@ -797,10 +828,12 @@ void TBasket::Streamer(TBuffer &b)
       b >> fNevBuf;
       b >> fLast;
       b >> flag;
+      printf("1 fLast=%d, flag=%d, GetSeekKey()=%lld\n", fLast, flag, GetSeekKey());//##
       if (fLast > fBufferSize) fBufferSize = fLast;
       if (!flag) {
          return;
       }
+      printf("2 fLast=%d, flag=%d, GetSeekKey()=%lld\n", fLast, flag, GetSeekKey());//##
       if (flag%10 != 2) {
          delete [] fEntryOffset;
          fEntryOffset = new Int_t[fNevBufSize];

@@ -452,18 +452,20 @@ Int_t TFileCacheRead::ReadBufferExtPrefetch(char *buf, Long64_t pos, Int_t len, 
 
 Int_t TFileCacheRead::ReadBufferExtNormal(char *buf, Long64_t pos, Int_t len, Int_t &loc)
 {
+//   printf("In TFileCacheRead::ReadBufferExtNormal and fNseek = %d, fIsSorted = %d, fAsyncReading = %d, fIsTransferred = %d\n", fNseek, fIsSorted, fAsyncReading, fIsTransferred);//##
    if (fNseek > 0 && !fIsSorted) {
       Sort();
       loc = -1;
 
       // If ReadBufferAsync is not supported by this implementation...
       if (!fAsyncReading) {
+//         printf("In TFileCacheRead::ReadBufferExtNormal and ReadBufferAsync is not supported\n");//##
          // Then we use the vectored read to read everything now
          if (fFile->ReadBuffers(fBuffer,fPos,fLen,fNb)) {
             return -1;
          }
          fIsTransferred = kTRUE;
-         printf("In TFileCacheRead::ReadBufferExtNormal and fIsTransferred is kTrue\n");//##
+//         printf("In TFileCacheRead::ReadBufferExtNormal and fIsTransferred is kTrue\n");//##
       } else {
          // In any case, we'll start to request the chunks.
          // This implementation simply reads all the chunks in advance
@@ -523,14 +525,14 @@ Int_t TFileCacheRead::ReadBufferExtNormal(char *buf, Long64_t pos, Int_t len, In
 
       return retval;
    } else {
-      printf("1. In TFileCacheRead::ReadBufferExtNormal and loc = %d\n",loc);//##
+//      printf("1. In TFileCacheRead::ReadBufferExtNormal and loc = %d\n",loc);//##
       if (loc < 0)
          loc = (Int_t)TMath::BinarySearch(fNseek, fSeekSort, pos);
-      printf("2. In TFileCacheRead::ReadBufferExtNormal and loc = %d\n",loc);//##
-      printf("3. In TFileCacheRead::ReadBufferExtNormal and pos = %lld, fSeekSort[loc] = %lld\n", pos, fSeekSort[loc]);//##
+//      printf("2. In TFileCacheRead::ReadBufferExtNormal and loc = %d\n",loc);//##
+//      printf("3. In TFileCacheRead::ReadBufferExtNormal and pos = %lld, fSeekSort[loc] = %lld\n", pos, fSeekSort[loc]);//##
       if (loc >= 0 && loc <fNseek && pos == fSeekSort[loc]) {
          if (buf) {
-            printf("there exists buf\n");//##
+//            printf("there exists buf\n");//##
             memcpy(buf,&fBuffer[fSeekPos[loc]],len);
             fFile->SetOffset(pos+len);
          }
