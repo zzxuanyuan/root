@@ -100,7 +100,7 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-   ROOT::EnableImplicitMT(4);
+//   ROOT::EnableImplicitMT(16);
    Int_t nevent = 400;     // by default create 400 events
    Int_t comp   = 1;       // by default file is compressed
    Int_t split  = 1;       // by default, split Event in sub branches
@@ -138,6 +138,18 @@ int main(int argc, char **argv)
    Event *event2 = 0;
    Event *event3 = 0;
    Event *event4 = 0;
+   Event *event5 = 0;
+   Event *event6 = 0;
+   Event *event7 = 0;
+   Event *event8 = 0;
+   Event *event9 = 0;
+   Event *event10 = 0;
+   Event *event11 = 0;
+   Event *event12 = 0;
+   Event *event13 = 0;
+   Event *event14 = 0;
+   Event *event15 = 0;
+   Event *event16 = 0;
 
    // Fill event, header and tracks with some random numbers
    //   Create a timer object to benchmark this loop
@@ -167,6 +179,30 @@ int main(int argc, char **argv)
       branch3->SetAddress(&event3);
       TBranch *branch4 = tree->GetBranch("event4");
       branch4->SetAddress(&event4);
+      TBranch *branch5 = tree->GetBranch("event5");
+      branch5->SetAddress(&event5);
+      TBranch *branch6 = tree->GetBranch("event6");
+      branch6->SetAddress(&event6);
+      TBranch *branch7 = tree->GetBranch("event7");
+      branch7->SetAddress(&event7);
+      TBranch *branch8 = tree->GetBranch("event8");
+      branch8->SetAddress(&event8);
+      TBranch *branch9 = tree->GetBranch("event9");
+      branch9->SetAddress(&event9);
+      TBranch *branch10 = tree->GetBranch("event10");
+      branch10->SetAddress(&event10);
+      TBranch *branch11 = tree->GetBranch("event11");
+      branch11->SetAddress(&event11);
+      TBranch *branch12 = tree->GetBranch("event12");
+      branch12->SetAddress(&event12);
+      TBranch *branch13 = tree->GetBranch("event13");
+      branch13->SetAddress(&event13);
+      TBranch *branch14 = tree->GetBranch("event14");
+      branch14->SetAddress(&event14);
+      TBranch *branch15 = tree->GetBranch("event15");
+      branch15->SetAddress(&event15);
+      TBranch *branch16 = tree->GetBranch("event16");
+      branch16->SetAddress(&event16);
       Int_t nentries = (Int_t)tree->GetEntries();
       nevent = TMath::Min(nevent,nentries);
       if (read == 1) {  //read sequential
@@ -226,6 +262,18 @@ int main(int argc, char **argv)
       event2 = new Event();           // By setting the value, we own the pointer and must delete it.
       event3 = new Event();           // By setting the value, we own the pointer and must delete it.
       event4 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event5 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event6 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event7 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event8 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event9 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event10 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event11 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event12 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event13 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event14 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event15 = new Event();           // By setting the value, we own the pointer and must delete it.
+      event16 = new Event();           // By setting the value, we own the pointer and must delete it.
       TTree::SetBranchStyle(branchStyle);
       TBranch *branch1 = tree->Branch("event1", &event1, bufsize,split);
       branch1->SetAutoDelete(kFALSE);
@@ -235,6 +283,30 @@ int main(int argc, char **argv)
       branch3->SetAutoDelete(kFALSE);
       TBranch *branch4 = tree->Branch("event4", &event4, bufsize,split);
       branch4->SetAutoDelete(kFALSE);
+      TBranch *branch5 = tree->Branch("event5", &event5, bufsize,split);
+      branch5->SetAutoDelete(kFALSE);
+      TBranch *branch6 = tree->Branch("event6", &event6, bufsize,split);
+      branch6->SetAutoDelete(kFALSE);
+      TBranch *branch7 = tree->Branch("event7", &event7, bufsize,split);
+      branch7->SetAutoDelete(kFALSE);
+      TBranch *branch8 = tree->Branch("event8", &event8, bufsize,split);
+      branch8->SetAutoDelete(kFALSE);
+      TBranch *branch9 = tree->Branch("event9", &event9, bufsize,split);
+      branch9->SetAutoDelete(kFALSE);
+      TBranch *branch10 = tree->Branch("event10", &event10, bufsize,split);
+      branch10->SetAutoDelete(kFALSE);
+      TBranch *branch11 = tree->Branch("event11", &event11, bufsize,split);
+      branch11->SetAutoDelete(kFALSE);
+      TBranch *branch12 = tree->Branch("event12", &event12, bufsize,split);
+      branch12->SetAutoDelete(kFALSE);
+      TBranch *branch13 = tree->Branch("event13", &event13, bufsize,split);
+      branch13->SetAutoDelete(kFALSE);
+      TBranch *branch14 = tree->Branch("event14", &event14, bufsize,split);
+      branch14->SetAutoDelete(kFALSE);
+      TBranch *branch15 = tree->Branch("event15", &event15, bufsize,split);
+      branch15->SetAutoDelete(kFALSE);
+      TBranch *branch16 = tree->Branch("event16", &event16, bufsize,split);
+      branch16->SetAutoDelete(kFALSE);
       if(split >= 0 && branchStyle) tree->BranchRef();
       Float_t ptmin = 1;
 
@@ -252,6 +324,18 @@ int main(int argc, char **argv)
          event2->Build(ev, arg5, ptmin);
          event3->Build(ev, arg5, ptmin);
          event4->Build(ev, arg5, ptmin);
+         event5->Build(ev, arg5, ptmin);
+         event6->Build(ev, arg5, ptmin);
+         event7->Build(ev, arg5, ptmin);
+         event8->Build(ev, arg5, ptmin);
+         event9->Build(ev, arg5, ptmin);
+         event10->Build(ev, arg5, ptmin);
+         event11->Build(ev, arg5, ptmin);
+         event12->Build(ev, arg5, ptmin);
+         event13->Build(ev, arg5, ptmin);
+         event14->Build(ev, arg5, ptmin);
+         event15->Build(ev, arg5, ptmin);
+         event16->Build(ev, arg5, ptmin);
 
          if (write) nb += tree->Fill();  //fill the tree
 
@@ -259,11 +343,22 @@ int main(int argc, char **argv)
          if (hm) hm->Hfill(event2);      //fill histograms
          if (hm) hm->Hfill(event3);      //fill histograms
          if (hm) hm->Hfill(event4);      //fill histograms
+         if (hm) hm->Hfill(event5);      //fill histograms
+         if (hm) hm->Hfill(event6);      //fill histograms
+         if (hm) hm->Hfill(event7);      //fill histograms
+         if (hm) hm->Hfill(event8);      //fill histograms
+         if (hm) hm->Hfill(event9);      //fill histograms
+         if (hm) hm->Hfill(event10);      //fill histograms
+         if (hm) hm->Hfill(event11);      //fill histograms
+         if (hm) hm->Hfill(event12);      //fill histograms
+         if (hm) hm->Hfill(event13);      //fill histograms
+         if (hm) hm->Hfill(event14);      //fill histograms
+         if (hm) hm->Hfill(event15);      //fill histograms
+         if (hm) hm->Hfill(event16);      //fill histograms
       }
       if (write) {
          hfile = tree->GetCurrentFile(); //just in case we switched to a new file
          hfile->Write();
-         tree->Print();
       }
    }
    // We own the event (since we set the branch address explicitly), we need to delete it.
