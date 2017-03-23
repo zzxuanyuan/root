@@ -342,7 +342,8 @@ Int_t TTreeCache::AddBranch(TBranch *b, Bool_t subbranches /*= kFALSE*/)
    // the expected TTree), then prefill the cache.  (We expect that in future
    // release the Prefill-ing will be the default so we test for that inside the
    // LearnPrefill call).
-   if (fNbranches == 0 && fEntryMin >= 0 && b->GetReadEntry() == fEntryMin) LearnPrefill();
+   printf("fEntryNext = %lld, fNbranches = %d, fEntryMin = %lld, b->GetReadEntry() = %lld, b->GetName() = %s\n", fEntryNext, fNbranches, fEntryMin, b->GetReadEntry(), b->GetName());//##
+   if (fNbranches == 0 && fEntryMin >= 0 && b->GetReadEntry() == fEntryMin) {printf("calling LearnPrefill()\n");LearnPrefill();printf("after called LearnPrefill()\n");}
 
    //Is branch already in the cache?
    Bool_t isNew = kTRUE;
@@ -468,6 +469,7 @@ Int_t TTreeCache::AddBranch(const char *bname, Bool_t subbranches /*= kFALSE*/)
    }
    //if all branches are selected stop the learning phase
    if (*bname == '*') {
+      printf("all branches are selected in AddBranch\n");//##
       fEntryNext = -1; // We are likely to have change the set of branches, so for the [re-]reading of the cluster.
       StopLearningPhase();
    }
@@ -618,17 +620,20 @@ Int_t TTreeCache::DropBranch(const char *bname, Bool_t subbranches /*= kFALSE*/)
 
 Bool_t TTreeCache::FillBuffer()
 {
+   printf("In FillBuffer, begin and fEntryNext = %lld\n", fEntryNext);//##
    if (fNbranches <= 0) return kFALSE;
    TTree *tree = ((TBranch*)fBranches->UncheckedAt(0))->GetTree();
    Long64_t entry = tree->GetReadEntry();
    Long64_t fEntryCurrentMax = 0;
 
    if (fEnablePrefetching) { // Prefetching mode
+      printf("fEnablePreftechign is true\n");//##
       if (fIsLearning) { // Learning mode
          if (fEntryNext >= 0 && entry >= fEntryNext) {
             // entry is outside the learn range, need to stop the learning
             // phase. Doing so may trigger a recursive call to FillBuffer in
             // the process of filling both prefetching buffers
+            printf("fEnablePrefetching and fIsLearning both true\n");//##
             StopLearningPhase();
             fIsManual = kFALSE;
          }
@@ -695,7 +700,9 @@ Bool_t TTreeCache::FillBuffer()
    // no point in retrying.   Note that this will also return false
    // during the training phase (fEntryNext is then set intentional to
    // the end of the training phase).
+   printf("1. In FillBuffer, fEntryCurrent = %lld, entry = %lld, fEntryNext = %lld\n", fEntryCurrent, entry, fEntryNext);//##
    if (fEntryCurrent <= entry && entry < fEntryNext) return kFALSE;
+   printf("2. In FillBuffer, fEntryCurrent = %lld, entry = %lld, fEntryNext = %lld\n", fEntryCurrent, entry, fEntryNext);//##
 
    // Triggered by the user, not the learning phase
    if (entry == -1)  entry = 0;
@@ -753,6 +760,7 @@ Bool_t TTreeCache::FillBuffer()
    Int_t minBasket = 0;  // We will use this to avoid re-checking the first baskets in the 2nd (or more) run in the while loop.
    Long64_t maxReadEntry = minEntry; // If we are stopped before the end of the 2nd pass, this marker will where we need to start next time.
    do {
+      printf("In while true\n");//##
       prevNtot = fNtotCurrentBuf;
       Int_t nextMinBasket = INT_MAX;
       UInt_t pass = 0;
@@ -786,6 +794,7 @@ Bool_t TTreeCache::FillBuffer()
                   continue;
                }
                //important: do not try to read fEntryNext, otherwise you jump to the next autoflush
+               printf("In FillBuffer entries[%d] = %lld, fEntryNext = %lld\n", j, entries[j], fEntryNext);//##
                if (entries[j] >= fEntryNext) break; // break out of the for each branch loop.
                if (entries[j] < minEntry && (j<nb-1 && entries[j+1] <= minEntry)) continue;
                if (elist) {
@@ -849,6 +858,7 @@ Bool_t TTreeCache::FillBuffer()
                   }
                }
                else {
+//                  printf("Prefetch pos = %lld, len = %d\n", pos, len);//##
                   TFileCacheRead::Prefetch(pos,len);
                   fNtotCurrentBuf = fNtot;
                }
@@ -887,11 +897,14 @@ Bool_t TTreeCache::FillBuffer()
       // would be if we run the loop one more time.   fNtotCurrentBuf and clusterIterations are Int_t but can sometimes
       // be 'large' (i.e. 30Mb * 300 intervals) and can overflow the numerical limit of Int_t (i.e. become
       // artificially negative).   To avoid this issue we promote fNtotCurrentBuf to a long long (64 bits rather than 32 bits)
+      printf("before long comments\n");//##
+      printf("fBufferSizeMin = %d, fNtotCurrentBuf = %d, clusterIterations = %d, prevNtot = %d, minEntry = %lld, fEntryMax = %lld\n", fBufferSizeMin, fNtotCurrentBuf, clusterIterations, prevNtot, minEntry, fEntryMax);//##
       if (!((fBufferSizeMin > ((Long64_t)fNtotCurrentBuf*(clusterIterations+1))/clusterIterations) && (prevNtot < fNtotCurrentBuf) && (minEntry < fEntryMax)))
          break;
-
+      printf("after long comments\n");//##
       //for the reverse reading case
       if (!fIsLearning && fReverseRead){
+         printf("fIsLearning = %d, fReverseRead = %d\n", fIsLearning, fReverseRead);
          if (clusterIterations >= fFillTimes)
             break;
          if (minEntry >= fEntryCurrentMax && fEntryCurrentMax >0)
@@ -900,8 +913,9 @@ Bool_t TTreeCache::FillBuffer()
       minBasket = nextMinBasket;
       fEntryNext = clusterIter.GetNextEntry();
       if (fEntryNext > fEntryMax) fEntryNext = fEntryMax;
+      printf("end of while true\n");//##
    } while (kTRUE);
-
+   printf("after while true\n");//##
    if (fEnablePrefetching) {
       if (fIsLearning) {
          fFirstBuffer = !fFirstBuffer;
@@ -1162,6 +1176,7 @@ void TTreeCache::SetEntryRange(Long64_t emin, Long64_t emax)
    fEntryMin  = emin;
    fEntryMax  = emax;
    fEntryNext  = fEntryMin + fgLearnEntries * (fIsLearning && !fIsManual);
+   printf("In SetEntryRange, fgLearnEntries = %d, fEntryMin = %lld, fEntryMax = %lld, fEntryNext = %lld\n", fgLearnEntries, fEntryMin, fEntryMax, fEntryNext);//##
    if (gDebug > 0)
       Info("SetEntryRange", "fEntryMin=%lld, fEntryMax=%lld, fEntryNext=%lld",
                              fEntryMin, fEntryMax, fEntryNext);
@@ -1316,12 +1331,14 @@ void TTreeCache::LearnPrefill()
 
    // Add all branches to be cached. This also sets fIsManual, stops learning,
    // and makes fEntryNext = -1 (which forces a cache fill, which is good)
+   printf("1. In LearnPrefill(), fEntryNext = %lld\n", fEntryNext);//##
    AddBranch("*");
    fIsManual = kFALSE; // AddBranch sets fIsManual, so we reset it
+   printf("2. In LearnPrefill(), fEntryNext = %lld\n", fEntryNext);//##
 
    // Now, fill the buffer with the learning phase entry range
    FillBuffer();
-
+   printf("fEntryNext = %lld\n", fEntryNext);//##
    // Leave everything the way we found it
    fIsLearning = kTRUE;
    DropBranch("*"); // This doesn't work unless we're already learning

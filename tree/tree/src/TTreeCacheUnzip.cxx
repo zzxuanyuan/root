@@ -159,11 +159,14 @@ void TTreeCacheUnzip::Init()
 
       fParallel = kTRUE;
 
-#ifdef R__USE_IMT
+#ifndef R__USE_IMT
 
       for (Int_t i = 0; i < 10; i++) fUnzipThread[i] = 0;
 
       StartThreadUnzip(THREADCNT);
+#else
+
+      UnzipCacheTBB();//##
 
 #endif
 
@@ -304,7 +307,7 @@ Bool_t TTreeCacheUnzip::FillBuffer()
                if (!elist->ContainsRange(entries[j]+chainOffset,emax+chainOffset)) continue;
             }
             fNReadPref++;
-
+            printf("calling prefetch and fNseek = %d\n", fNseek);//##
             TFileCacheRead::Prefetch(pos,len);
          }
          if (gDebug > 0) printf("Entry: %lld, registering baskets branch %s, fEntryNext=%lld, fNseek=%d, fNtot=%d\n",entry,((TBranch*)fBranches->UncheckedAt(i))->GetName(),fEntryNext,fNseek,fNtot);
@@ -720,7 +723,7 @@ Int_t TTreeCacheUnzip::UnzipCacheTBB()
    std::atomic<Int_t> blockstogo(fBlocksToGo);
    tbb::task_group g;
 
-//   printf("Before running to for loop\n");
+   printf("Before running to for loop, fNseek = %d\n", fNseek);
    // Try to look for a blk to unzip
    for (Int_t ii=0; ii < fNseek; ii++) {
       g.run([&](){
@@ -735,9 +738,9 @@ Int_t TTreeCacheUnzip::UnzipCacheTBB()
 
          // To synchronize with the 'paging'
          myCycle = fCycle;
-//         printf("totalunzipbytes = %d, fUnzipBufferSize = %d, blockstogo = %d\n", totalunzipbytes.load(), fUnzipBufferSize, blockstogo.load());//##
+         printf("totalunzipbytes = %d, fUnzipBufferSize = %d, blockstogo = %d\n", totalunzipbytes.load(), fUnzipBufferSize, blockstogo.load());//##
          if (totalunzipbytes < fUnzipBufferSize) {
-//            printf("blockstogo = %d\n", blockstogo.load());//##
+            printf("blockstogo = %d\n", blockstogo.load());//##
             if (blockstogo > 0) {
 
                Int_t reqi = startindex.fetch_add(1);
@@ -847,7 +850,7 @@ Int_t TTreeCacheUnzip::UnzipCacheTBB()
                }
             }
          }
-         return 0;
+//         return 0;
       });
    }
    g.wait();
@@ -872,7 +875,7 @@ Int_t TTreeCacheUnzip::GetUnzipBuffer(char **buf, Long64_t pos, Int_t len, Bool_
    Int_t res = 0;
    Int_t loc = -1;
 
-#ifndef R__USE_IMT
+#ifdef R__USE_IMT
 
    // We go straight to TTreeCache/TfileCacheRead, in order to get the info we need
    //  pointer to the original zipped chunk
@@ -960,7 +963,7 @@ Int_t TTreeCacheUnzip::GetUnzipBuffer(char **buf, Long64_t pos, Int_t len, Bool_
 			   //			   fUnzipStatus[seekidx] = 2;
 			   //			   fUnzipChunks[seekidx] = 0;
 
-			   res = UnzipCacheTBB();//##
+//			   res = UnzipCacheTBB();//##
 			   // Here the block is not pending. It could be done or aborted or not yet being processed.
 			   if ( (seekidx >= 0) && (fUnzipStatus[seekidx] == 2) && (fUnzipChunks[seekidx]) && (fUnzipLen[seekidx] > 0) ) {
 
