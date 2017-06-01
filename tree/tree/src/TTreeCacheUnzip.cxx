@@ -979,8 +979,8 @@ Int_t TTreeCacheUnzip::GetUnzipBuffer(char **buf, Long64_t pos, Int_t len, Bool_
 				   fUnzipStatus[seekidx] = 2;
 				   fUnzipChunks[seekidx] = 0;
 
-				   if ((fTotalUnzipBytes < fUnzipBufferSize) && fBlocksToGo)
-					   SendUnzipStartSignal(kFALSE);
+//				   if ((fTotalUnzipBytes < fUnzipBufferSize) && fBlocksToGo)
+//					   SendUnzipStartSignal(kFALSE);
 
 				   //if (gDebug > 0)
 				   //   Info("GetUnzipBuffer", "++++++++++++++++++++ CacheMISS Block wanted: %d  len:%d fNseek:%d", seekidx, len, fNseek);
