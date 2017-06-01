@@ -679,7 +679,7 @@ void TTreeCacheUnzip::ResetCache()
 
    }
 
-   while (fActiveBlks.size()) fActiveBlks.pop();
+//   while (fActiveBlks.size()) fActiveBlks.pop();
 
    if(fNseekMax < fNseek){
       if (gDebug > 0)
@@ -821,7 +821,7 @@ Int_t TTreeCacheUnzip::UnzipCacheTBB()
                      fUnzipLen[reqi] = loclen;
                      totalunzipbytes.fetch_add(loclen);
 
-                     fActiveBlks.push(reqi);
+//                     fActiveBlks.push(reqi); // fActiveBlks is not thread safe and this line causes segmentation fault. So we delete all fActiveBlks in the code for now.
 
                      fNUnzip++;
                   }
@@ -1640,7 +1640,7 @@ Int_t TTreeCacheUnzip::UnzipCache(Int_t &startindex, Int_t &locbuffsz, char *&lo
       fUnzipLen[idxtounzip] = loclen;
       fTotalUnzipBytes += loclen;
 
-      fActiveBlks.push(idxtounzip);
+//      fActiveBlks.push(idxtounzip);
 
       if (gDebug > 0)
          Info("UnzipCache", "reqi:%d, rdoffs:%lld, rdlen: %d, loclen:%d",
