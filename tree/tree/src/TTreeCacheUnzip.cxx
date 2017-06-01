@@ -716,7 +716,7 @@ void TTreeCacheUnzip::ResetCache()
 
 Int_t TTreeCacheUnzip::UnzipCacheTBB()
 {
-   std::atomic<Int_t> startindex(0);
+   std::atomic<Int_t> startindex(fLastReadPos);
    std::atomic<Long64_t> totalunzipbytes(fTotalUnzipBytes);
    std::atomic<Int_t> blockstogo(fBlocksToGo);
    tbb::task_group g;
@@ -735,7 +735,7 @@ Int_t TTreeCacheUnzip::UnzipCacheTBB()
 
          // To synchronize with the 'paging'
          myCycle = fCycle;
-         if (totalunzipbytes < fUnzipBufferSize) {
+//         if (totalunzipbytes < fUnzipBufferSize) {
             if (blockstogo > 0) {
 
                Int_t reqi = startindex.fetch_add(1);
@@ -833,7 +833,7 @@ Int_t TTreeCacheUnzip::UnzipCacheTBB()
                   }
                }
             }
-         }
+//         }
          return 0;
       });
    }
