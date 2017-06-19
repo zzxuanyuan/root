@@ -527,6 +527,7 @@ TTree::TClusterIterator::TClusterIterator(TTree *tree, Long64_t firstEntry) : fT
    if ( fTree->GetAutoFlush() <= 0 ) {
       // Case of old files before November 9 2009
       fStartEntry = firstEntry;
+//      printf("iterator if\n");//##
    } else if (fTree->fNClusterRange) {
       // Find the correct cluster range.
       //
@@ -554,8 +555,10 @@ TTree::TClusterIterator::TClusterIterator(TTree *tree, Long64_t firstEntry) : fT
          autoflush = GetEstimatedClusterSize();
       }
       fStartEntry = pedestal + entryInRange - entryInRange%autoflush;
+//      printf("iterator else if: pedestal = %lld, entryInRange = %lld, autoflush = %lld\n", pedestal, entryInRange, autoflush);//##
    } else {
       fStartEntry = firstEntry - firstEntry%fTree->GetAutoFlush();
+//      printf("iterator else: firstEntry = %lld, fTree->GetAutoFlush() = %lld\n", firstEntry, fTree->GetAutoFlush());//##
    }
    fNextEntry = fStartEntry; // Position correctly for the first call to Next()
 }
@@ -5374,6 +5377,13 @@ Int_t TTree::GetEntry(Long64_t entry, Int_t getall)
 
             start = std::chrono::system_clock::now();
             nbtask = branch->GetEntry(entry, getall);
+//            printf("branch name: %s\n", branch->GetName());//##
+//            TObjArray barr = *(branch->GetListOfBranches());
+//            int cnt = barr.GetEntriesFast();
+//            int *baskets = branch->GetEntryOffset();
+//            for(int m = 0; m < cnt; ++m) {
+//               printf("sub branch: %s\n", (barr.UncheckedAt(m))->GetName());//##
+//            }
             end = std::chrono::system_clock::now();
 
             Long64_t tasktime = (Long64_t)std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();

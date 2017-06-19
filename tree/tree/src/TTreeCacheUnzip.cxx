@@ -166,7 +166,7 @@ void TTreeCacheUnzip::Init()
       StartThreadUnzip(THREADCNT);
 #else
 
-      UnzipCacheTBB();//##
+//      UnzipCacheTBB();//##
 
 #endif
 
@@ -315,7 +315,8 @@ Bool_t TTreeCacheUnzip::FillBuffer()
 
       // Now fix the size of the status arrays
       ResetCache();
-
+      printf("FillBuffer, fIsLearning = %d, fIsTransferred = %d\n", fIsLearning, fIsTransferred);//##
+      UnzipCacheTBB();//##
       fIsLearning = kFALSE;
 
    }
@@ -857,7 +858,7 @@ Int_t TTreeCacheUnzip::GetUnzipBuffer(char **buf, Long64_t pos, Int_t len, Bool_
 {
    Int_t res = 0;
    Int_t loc = -1;
-
+   printf("GetUnzipBuffer, fIsLearning = %d, fIsTransferred = %d\n", fIsLearning, fIsTransferred);//##
 #ifdef R__USE_IMT
 
    // We go straight to TTreeCache/TfileCacheRead, in order to get the info we need
@@ -946,7 +947,7 @@ Int_t TTreeCacheUnzip::GetUnzipBuffer(char **buf, Long64_t pos, Int_t len, Bool_
 			   //			   fUnzipStatus[seekidx] = 2;
 			   //			   fUnzipChunks[seekidx] = 0;
 
-			   res = UnzipCacheTBB();//##
+//			   res = UnzipCacheTBB();//##
 			   // Here the block is not pending. It could be done or aborted or not yet being processed.
 			   if ( (seekidx >= 0) && (fUnzipStatus[seekidx] == 2) && (fUnzipChunks[seekidx]) && (fUnzipLen[seekidx] > 0) ) {
 
@@ -991,6 +992,7 @@ Int_t TTreeCacheUnzip::GetUnzipBuffer(char **buf, Long64_t pos, Int_t len, Bool_
 		   }
 
 	   } else {
+                   printf("set fIsTransferred to false\n");//##
 		   loc = -1;
 		   //fLastReadPos = 0;
 		   fIsTransferred = kFALSE;

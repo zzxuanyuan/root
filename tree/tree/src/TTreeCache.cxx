@@ -1219,12 +1219,14 @@ void TTreeCache::SetLearnPrefill(TTreeCache::EPrefillType type /* = kNoPrefill *
 
 void TTreeCache::StartLearningPhase()
 {
+   printf("1. StartLearningPhase, fIsLearning = %d, fIsTransferred = %d\n", fIsLearning, fIsTransferred);//##
    fIsLearning = kTRUE;
    fIsManual = kFALSE;
    fNbranches  = 0;
    if (fBrNames) fBrNames->Delete();
    fIsTransferred = kFALSE;
    fEntryCurrent = -1;
+   printf("2. StartLearningPhase, fIsLearning = %d, fIsTransferred = %d\n", fIsLearning, fIsTransferred);//##
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1236,6 +1238,7 @@ void TTreeCache::StartLearningPhase()
 
 void TTreeCache::StopLearningPhase()
 {
+   printf("1. StopLearningPhase, fIsLearning = %d, fIsTransferred = %d\n", fIsLearning, fIsTransferred);//##
    if (fIsLearning) {
       // This will force FillBuffer to read the buffers.
       fEntryNext = -1;
@@ -1249,6 +1252,7 @@ void TTreeCache::StopLearningPhase()
       FillBuffer();
       fOneTime = kTRUE;
    }
+   printf("2. StopLearningPhase, fIsLearning = %d, fIsTransferred = %d\n", fIsLearning, fIsTransferred);//##
 }
 
 ////////////////////////////////////////////////////////////////////////////////

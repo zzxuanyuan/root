@@ -169,6 +169,7 @@ int main(int argc, char **argv)
       } else
          hfile = new TFile("Event.root");
       tree = (TTree*)hfile->Get("T");
+//      tree->Print();//##
       TBranch *branch = tree->GetBranch("event");
       branch->SetAddress(&event);
       Int_t nentries = (Int_t)tree->GetEntries();

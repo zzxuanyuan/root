@@ -2335,6 +2335,13 @@ Int_t TBranchElement::GetEntry(Long64_t entry, Int_t getall)
          Info("GetEntry", "%lld, branch=%s, nbytes=%d", entry, GetName(), nbytes);
       }
    }
+   printf("current branch: %s, fMaxBaskets = %d, fNBaskets = %d\n", GetName(), fMaxBaskets, fNBaskets);//##
+   for(int n = 0; n < fBranches.GetEntriesFast(); ++n) {
+               printf("subsub branch: %s\n", fBranches[n]->GetName());//##
+   }
+   for(int m = 0; m < fBaskets.GetEntriesFast(); ++m) {
+      printf("fBaskets %d : bytes = %d, entry = %lld, seek = %lld\n", m, fBasketBytes[m], fBasketEntry[m], fBasketSeek[m]);//##
+   }
    return nbytes;
 }
 
