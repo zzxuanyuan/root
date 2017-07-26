@@ -55,7 +55,7 @@ where bufferSize must be passed in bytes.
 
 #include "TEnv.h"
 
-#define THREADCNT 2
+#define THREADCNT 4
 extern "C" void R__unzip(Int_t *nin, UChar_t *bufin, Int_t *lout, char *bufout, Int_t *nout);
 extern "C" int R__unzip_header(Int_t *nin, UChar_t *bufin, Int_t *lout);
 
@@ -854,7 +854,7 @@ Int_t TTreeCacheUnzip::GetUnzipBuffer(char **buf, Long64_t pos, Int_t len, Bool_
                fUnzipStatus[seekidx] = 2;
                fUnzipChunks[seekidx] = 0;
 
-               if ((fTotalUnzipBytes < fUnzipBufferSize) && fBlocksToGo)
+               if (fBlocksToGo)
                   SendUnzipStartSignal(kFALSE);
 
                //if (gDebug > 0)
@@ -958,7 +958,7 @@ Int_t TTreeCacheUnzip::UnzipBuffer(char **dest, char *src)
       /* early consistency check */
       UChar_t *bufcur = (UChar_t *) (src + keylen);
       Int_t nin, nbuf;
-      if(R__unzip_header(&nin, bufcur, &nbuf)!=0) {
+      if(objlen > nbytes - keylen && R__unzip_header(&nin, bufcur, &nbuf)!=0) {
          Error("UnzipBuffer", "Inconsistency found in header (nin=%d, nbuf=%d)", nin, nbuf);
          uzlen = -1;
          return uzlen;
@@ -1085,7 +1085,7 @@ Int_t TTreeCacheUnzip::UnzipCache(Int_t &startindex, Int_t &locbuffsz, char *&lo
       idxtounzip = -1;
       rdoffs = 0;
       rdlen = 0;
-      if (fTotalUnzipBytes < fUnzipBufferSize) {
+//      if (fTotalUnzipBytes < fUnzipBufferSize) {
 
          if (fBlocksToGo > 0) {
             for (Int_t ii=0; ii < fNseek; ii++) {
@@ -1102,7 +1102,7 @@ Int_t TTreeCacheUnzip::UnzipCache(Int_t &startindex, Int_t &locbuffsz, char *&lo
             }
             if (idxtounzip < 0) fBlocksToGo = 0;
          }
-      }
+//      }
 
    } // lock scope
 
