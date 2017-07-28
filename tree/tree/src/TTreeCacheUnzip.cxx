@@ -786,11 +786,12 @@ Int_t TTreeCacheUnzip::GetUnzipBuffer(char **buf, Long64_t pos, Int_t len, Bool_
             if (fUnzipStatus[seekidx] == 1) {
                if (fBlocksToGo > 0) {
                   for (Int_t ii = 0; ii < fNseek; ++ii) {
-                     if (!fUnzipStatus[ii]) {
+                     Int_t idx = (seekidx + 1 + ii) % fNseek;
+                     if (!fUnzipStatus[idx]) {
                         Byte_t oldV = 0;
                         Byte_t newV = 1;
-                        if(fUnzipStatus[ii].compare_exchange_weak(oldV, newV, std::memory_order_release, std::memory_order_relaxed)) {
-                           reqi = ii;
+                        if(fUnzipStatus[idx].compare_exchange_weak(oldV, newV, std::memory_order_release, std::memory_order_relaxed)) {
+                           reqi = idx;
                            break;
                         }
                      }
