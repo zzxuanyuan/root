@@ -487,8 +487,8 @@ void TTreeCacheUnzip::ResetCache()
       fUnzipChunks = aUnzipChunks;
 
       fNseekMax   = fNseek;
-      fBlocksToGo = fNseek;
    }
+   fBlocksToGo = fNseek;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
