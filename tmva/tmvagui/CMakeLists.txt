@@ -12,7 +12,7 @@ if(NOT CMAKE_PROJECT_NAME STREQUAL ROOT)
 endif()
 
 set(headers1 annconvergencetest.h  deviations.h mvaeffs.h PlotFoams.h  TMVAGui.h
-	 BDTControlPlots.h  correlationscatters.h efficiencies.h  mvas.h probas.h 
+	 BDTControlPlots.h  correlationscatters.h efficiencies.h efficienciesMulticlass.h mvas.h probas.h 
 	 BDT.h   correlationscattersMultiClass.h  likelihoodrefs.h  mvasMulticlass.h  regression_averagedevs.h  TMVAMultiClassGui.h
 	 BDT_Reg.h  correlations.h   mvaweights.h rulevisCorr.h  TMVARegGui.h
 	 BoostControlPlots.h correlationsMultiClass.h network.h rulevis.h   variables.h
@@ -26,12 +26,10 @@ foreach(hs headers1)
   endforeach()
 endforeach()
 
-ROOT_GENERATE_DICTIONARY(G__TMVAGui ${theaders1}   MODULE TMVAGui LINKDEF LinkDef.h OPTIONS "-writeEmptyRootPCM")
-
-ROOT_LINKER_LIBRARY(TMVAGui *.cxx G__TMVAGui.cxx LIBRARIES Core
-                    DEPENDENCIES RIO Hist Tree TreeViewer  MLP Minuit XMLIO TMVA Gui)
-
-ROOT_INSTALL_HEADERS()
+ROOT_STANDARD_LIBRARY_PACKAGE(TMVAGui
+                              HEADERS ${theaders1}
+                              DICTIONARY_OPTIONS "-writeEmptyRootPCM"
+                              DEPENDENCIES RIO Hist Tree TreeViewer MLP Minuit XMLIO TMVA Gui Core)
 
 if(NOT gnuinstall)
   install(DIRECTORY test DESTINATION tmva 

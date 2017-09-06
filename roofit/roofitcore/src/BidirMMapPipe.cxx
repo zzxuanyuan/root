@@ -62,7 +62,7 @@ namespace BidirMMapPipe_impl {
             /// constructor taking error code, hint on operation (msg)
             BidirMMapPipeException(const char* msg, int err);
             /// return a destcription of what went wrong
-            virtual const char* what() const throw() { return m_buf; }
+            virtual const char* what() const noexcept { return m_buf; }
     };
 
     BidirMMapPipeException::BidirMMapPipeException(const char* msg, int err)
@@ -754,7 +754,7 @@ BidirMMapPipe::BidirMMapPipe(bool useExceptions, bool useSocketpair) :
 
 {
     ++s_pagepoolrefcnt;
-    assert(TotPages && 0 == (TotPages & 1) && TotPages <= 256);
+    assert(0 < TotPages && 0 == (TotPages & 1) && TotPages <= 256);
     int fds[4] = { -1, -1, -1, -1 };
     int myerrno;
     static bool firstcall = true;

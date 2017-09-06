@@ -11,18 +11,10 @@
 #define ROOT_TBackCompFitter_H_
 
 #include "TVirtualFitter.h"
-
 #include "Fit/BasicFCN.h"
 #include "Fit/FitResult.h"
-
 #include "Fit/Fitter.h"
-
-#include "Fit/DataVector.h"
-
 #include "Math/IFunctionfwd.h"
-
-
-
 #include <vector>
 
 /*
@@ -57,7 +49,7 @@ public:
 
 public:
 
-   enum {
+   enum EStatusBits {
       kCanDeleteLast = BIT(9)  // object can be deleted before creating a new one
    };
 
@@ -138,8 +130,8 @@ protected:
 private:
 
    //ROOT::Fit::FitData * fFitData;
-   std::shared_ptr<ROOT::Fit::FitData>  fFitData;  //! data of the fit 
-   std::shared_ptr<ROOT::Fit::Fitter>   fFitter;   //! pointer to fitter object 
+   std::shared_ptr<ROOT::Fit::FitData>  fFitData;  //! data of the fit
+   std::shared_ptr<ROOT::Fit::Fitter>   fFitter;   //! pointer to fitter object
    ROOT::Math::Minimizer * fMinimizer;
    ROOT::Math::IMultiGenFunction * fObjFunc;
    ROOT::Math::IParamMultiFunction * fModelFunc;

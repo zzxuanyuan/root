@@ -2,11 +2,9 @@
 # CMakeLists.txt file for building ROOT io/io package
 ############################################################################
 
-ROOT_ADD_CXX_FLAG(CMAKE_CXX_FLAGS -Wno-deprecated-declarations) # auto_ptr...
-
 set(MATHCORE_HEADERS TRandom.h
   TRandom1.h TRandom2.h TRandom3.h TKDTree.h TKDTreeBinning.h TStatistic.h
-  Math/IParamFunction.h Math/IFunction.h Math/ParamFunctor.h Math/Functor.h
+  Math/Error.h Math/IParamFunction.h Math/IFunction.h Math/ParamFunctor.h Math/Functor.h
   Math/Minimizer.h Math/MinimizerOptions.h Math/IntegratorOptions.h Math/IOptions.h Math/GenAlgoOptions.h
   Math/BasicMinimizer.h Math/MinimTransformFunction.h Math/MinimTransformVariable.h
   Math/Integrator.h Math/VirtualIntegrator.h Math/AllIntegrationTypes.h Math/AdaptiveIntegratorMultiDim.h
@@ -17,9 +15,13 @@ set(MATHCORE_HEADERS TRandom.h
   Math/ChebyshevPol.h Math/KDTree.h Math/TDataPoint.h Math/TDataPointN.h Math/Delaunay2D.h
   Math/Random.h Math/TRandomEngine.h Math/RandomFunctions.h Math/StdEngine.h
   Math/MersenneTwisterEngine.h Math/MixMaxEngine.h   TRandomGen.h Math/LCGEngine.h
+  Math/Types.h
 )
 
-ROOT_GENERATE_DICTIONARY(G__MathCore   TComplex.h TMath.h ${MATHCORE_HEADERS} Fit/*.h MODULE MathCore LINKDEF LinkDef.h OPTIONS "-writeEmptyRootPCM")
+if(veccore)
+  set(MATHCORE_LIBRARIES ${VecCore_LIBRARIES})
+  set(MATHCORE_BUILTINS VECCORE)
+endif()
 
 add_definitions(-DUSE_ROOT_ERROR)
 ROOT_ADD_C_FLAG(_flags -Wno-strict-overflow)  # Avoid what it seems a compiler false positive warning
@@ -28,12 +30,19 @@ ROOT_ADD_C_FLAG(_flags -Wno-parentheses-equality)
 
 set_source_files_properties(src/triangle.c COMPILE_FLAGS "${_flags}")
 
-ROOT_LINKER_LIBRARY(MathCore *.cxx *.c G__MathCore.cxx LIBRARIES ${CMAKE_THREAD_LIBS_INIT} DEPENDENCIES Core)
+if(imt)
+  set(MATHCORE_DEPENDENCIES Imt)
+endif()
 
-ROOT_INSTALL_HEADERS()
+ROOT_STANDARD_LIBRARY_PACKAGE(MathCore HEADERS TComplex.h TMath.h ${MATHCORE_HEADERS} Fit/*.h
+                              SOURCES *.cxx *.c
+                              DICTIONARY_OPTIONS "-writeEmptyRootPCM"
+                              LIBRARIES ${CMAKE_THREAD_LIBS_INIT} ${MATHCORE_LIBRARIES}
+                              DEPENDENCIES Core ${MATHCORE_DEPENDENCIES}
+                              BUILTINS ${MATHCORE_BUILTINS})
+
+if(veccore)
+  target_compile_definitions(MathCore INTERFACE ${VecCore_DEFINITIONS})
+endif()
 
 ROOT_ADD_TEST_SUBDIRECTORY(test)
-
-
-
-

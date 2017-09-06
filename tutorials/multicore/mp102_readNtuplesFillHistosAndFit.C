@@ -17,15 +17,19 @@ Int_t mp102_readNtuplesFillHistosAndFit()
    gROOT->SetBatch();
 
    //---------------------------------------
-   // Perform the operation sequentially 
+   // Perform the operation sequentially
    TChain inputChain("multiCore");
    inputChain.Add("mp101_multiCore_*.root");
+   if (inputChain.GetNtrees() <= 0) {
+      Printf(" No files in the TChain: did you run mp101_fillNtuples.C before?");
+      return 1;
+   }
    TH1F outHisto("outHisto", "Random Numbers", 128, -4, 4);
    inputChain.Draw("r >> outHisto");
    outHisto.Fit("gaus");
 
    //---------------------------------------
-   // We now go MP! 
+   // We now go MP!
    // TProcessExecutor offers an interface to directly process trees and chains without
    // the need for the user to go through the low level implementation of a
    // map-reduce.

@@ -5,7 +5,7 @@
 set(headers TAtomicCount.h TCondition.h TConditionImp.h TMutex.h TMutexImp.h
             TRWLock.h ROOT/TRWSpinLock.hxx TSemaphore.h TThread.h TThreadFactory.h
             TThreadImp.h ROOT/TThreadedObject.hxx TThreadPool.h
-            ThreadLocalStorage.h ROOT/TSpinMutex.hxx)
+            ThreadLocalStorage.h ROOT/TSpinMutex.hxx ROOT/TReentrantRWLock.hxx)
 if(NOT WIN32)
   set(headers ${headers} TPosixCondition.h TPosixMutex.h
                          TPosixThread.h TPosixThreadFactory.h PosixThreadInc.h)
@@ -18,7 +18,7 @@ endif()
 
 set(sources TCondition.cxx TConditionImp.cxx TMutex.cxx TMutexImp.cxx
             TRWLock.cxx TRWSpinLock.cxx TSemaphore.cxx TThread.cxx TThreadFactory.cxx
-            TThreadImp.cxx)
+            TThreadImp.cxx TRWMutexImp.cxx TReentrantRWLock.cxx)
 if(NOT WIN32)
   set(sources ${sources} TPosixCondition.cxx TPosixMutex.cxx
                          TPosixThread.cxx TPosixThreadFactory.cxx)
@@ -27,15 +27,15 @@ else()
                          TWin32Thread.cxx TWin32ThreadFactory.cxx)
 endif()
 
-if (imt)
-  set(sources_imt TImplicitMT.cxx TThreadExecutor.cxx TPoolManager.cxx)
-  set(headers_imt ROOT/TThreadExecutor.hxx ROOT/TPoolManager.hxx)
+ROOT_STANDARD_LIBRARY_PACKAGE(Thread
+                              HEADERS ${headers}
+                              SOURCES ${sources}
+                              OBJECT_LIBRARY
+                              STAGE1
+                              DEPENDENCIES Core
+                              LIBRARIES ${CMAKE_THREAD_LIBS_INIT}
+                              INSTALL_OPTIONS ${installoptions})
+
+if(testing)
+    add_subdirectory(test)
 endif()
-
-include_directories(${TBB_INCLUDE_DIRS})
-
-ROOT_GENERATE_DICTIONARY(G__Thread ${headers} ${headers_imt} STAGE1 MODULE Thread LINKDEF LinkDef.h)
-
-ROOT_OBJECT_LIBRARY(ThreadObjs ${sources} G__Thread.cxx)
-ROOT_LINKER_LIBRARY(Thread $<TARGET_OBJECTS:ThreadObjs> ${sources_imt} LIBRARIES ${CMAKE_THREAD_LIBS_INIT} ${TBB_LIBRARIES} DEPENDENCIES Core BUILTINS TBB)
-ROOT_INSTALL_HEADERS(${installoptions})

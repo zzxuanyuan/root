@@ -2,8 +2,13 @@
 # CMakeLists.txt file for building ROOT core/base package
 ############################################################################
 
+if(testing)
+    add_subdirectory(test)
+endif()
+
 ROOT_GLOB_HEADERS(Base_dict_headers ${CMAKE_CURRENT_SOURCE_DIR}/inc/T*.h
-                                    ${CMAKE_CURRENT_SOURCE_DIR}/inc/GuiTypes.h 
+                                    ${CMAKE_CURRENT_SOURCE_DIR}/inc/GuiTypes.h
+                                    ${CMAKE_CURRENT_SOURCE_DIR}/inc/MessageTypes.h
                                     ${CMAKE_CURRENT_SOURCE_DIR}/inc/KeySymbols.h 
                                     ${CMAKE_CURRENT_SOURCE_DIR}/inc/Buttons.h)
 if(root7)
@@ -29,8 +34,11 @@ ROOT_GENERATE_DICTIONARY(G__Core
                          OPTIONS ${dict_opts}
                          LINKDEF LinkDef.h)
 
+# This is needed becuase LinkDef.h includes other LinkDef starting from  ${CMAKE_SOURCE_DIR}
+set_property(TARGET G__Core PROPERTY INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR})
+
 list(REMOVE_ITEM sources TROOT.cxx roota.cxx)
-ROOT_OBJECT_LIBRARY(Base G__Core.cxx ${sources})
+ROOT_OBJECT_LIBRARY(Base G__Core.cxx ${sources} BUILTINS PCRE)
 
 ROOT_INSTALL_HEADERS()
 

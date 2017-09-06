@@ -27,7 +27,6 @@ import sys
 if sys.version_info < (3, 0):
     # Python 2.x
     from urllib2 import urlopen
-
     input = raw_input
 else:
     # Python 3.x
@@ -58,14 +57,8 @@ import json
 
 def _convert_subprocess_cmd(cmd):
     if OS == 'Windows':
-        if '"' in cmd:
-            # Assume there's only one quoted argument.
-            bits = cmd.split('"')
-            return bits[0].split() + [bits[1]] + bits[2].split()
-        else:
-            return cmd.split()
-    else:
-        return shlex.split(cmd, posix=True, comments=True)
+        cmd = cmd.replace('\\','/')
+    return shlex.split(cmd, posix=True, comments=True)
 
 
 def _perror(e):
@@ -94,7 +87,6 @@ def exec_subprocess_check_output(cmd, cwd):
                                       stdin=subprocess.PIPE, stderr=subprocess.STDOUT).decode('utf-8')
     except subprocess.CalledProcessError as e:
         _perror(e)
-
     finally:
         return out
 
@@ -132,8 +124,6 @@ def box_draw(msg):
 | %s%s|
 +-----------------------------------------------------------------------------+''' % (msg, spacer))
 
-# Make sure git log is invoked without a pager
-GIT_LOG='git --no-pager log '
 
 def pip_install(package):
     # Needs brew install python. We should only install if we need the
@@ -398,7 +388,7 @@ def set_version():
     VERSION = open(os.path.join(CLING_SRC_DIR, 'VERSION'), 'r').readline().strip()
 
     # If development release, then add revision to the version
-    REVISION = exec_subprocess_check_output(GIT_LOG + ' -n 1 --pretty=format:%H', CLING_SRC_DIR).strip()
+    REVISION = exec_subprocess_check_output('git log -n 1 --pretty=format:%H', CLING_SRC_DIR).strip()
 
     if '~dev' in VERSION:
         VERSION = VERSION + '-' + REVISION[:7]
@@ -439,7 +429,13 @@ def set_vars():
 class Build(object):
     def __init__(self, target=None):
         super(Build, self).__init__()
-        self.buildType = 'Debug' if args.get('create_dev_env') else 'Release'
+        if args.get('create_dev_env'):
+            if args.get('create_dev_env') is None:
+                self.buildType = 'Debug'
+            else:
+                self.buildType = args.get('create_dev_env')
+        else:
+            self.buildType = 'Release'
         self.win32 = platform.system() == 'Windows'
         self.cores = multiprocessing.cpu_count()
         # Travis CI, GCC crashes if more than 4 cores used.
@@ -475,11 +471,11 @@ def compile(arg, build_libcpp):
         shutil.rmtree(prefix)
 
     # Cleanup previous build directory if exists
-    if os.path.isdir(os.path.join(workdir, 'builddir')):
-        print("Using previous build directory: " + os.path.join(workdir, 'builddir'))
+    if os.path.isdir(LLVM_OBJ_ROOT):
+        print("Using previous build directory: " + LLVM_OBJ_ROOT)
     else:
-        print("Creating build directory: " + os.path.join(workdir, 'builddir'))
-        os.makedirs(os.path.join(workdir, 'builddir'))
+        print("Creating build directory: " + LLVM_OBJ_ROOT)
+        os.makedirs(LLVM_OBJ_ROOT)
 
     ### FIX: Target isn't being set properly on Travis OS X
     ### Either because ccache or maybe the virtualization environment
@@ -548,10 +544,7 @@ def compile(arg, build_libcpp):
 
     if not CLING_BRANCH:
         box_draw("Install compiled binaries to prefix (using %d cores)" % build.cores)
-        if build.win32:
-            build.make('INSTALL')
-        else:
-            build.make('install', 'prefix=%s' % TMP_PREFIX)
+        build.make('install')
 
     if TRAVIS_BUILD_DIR:
         ### Run cling once, dumping the include paths, helps debug issues
@@ -561,46 +554,61 @@ def compile(arg, build_libcpp):
         except Exception as e:
             print(e)
 
-def build_dist_list(file_dict, include=[], ignore=[]):
-    for key, value in file_dict.items():
-        if isinstance(value, dict):
-                build_dist_list(value, include, ignore)
-        else:
-            if key == 'IGNORE':
-                ignore.extend(value)
-            else:
-                include.extend(value)
-
-    return include, ignore
-
 def install_prefix():
+    global prefix
     set_vars()
 
     box_draw("Filtering Cling's libraries and binaries")
 
-    dist_files = json.loads(
-        open(os.path.join(CPT_SRC_DIR, 'dist-files.json')).read()
-    )
-
-    dist_files['BIN'] = [binary.replace('@EXEEXT@', EXEEXT) for binary in dist_files['BIN']]
-    dist_files['CLANG']['LIB'] = [header.replace('@CLANG_VERSION@', CLANG_VERSION) for header in dist_files['CLANG']['LIB']]
-
-    included, ignored = build_dist_list(dist_files)
+    regex_array = []
+    regex_filename = os.path.join(CPT_SRC_DIR, 'dist-files.txt');
+    for line in open(regex_filename).read().splitlines():
+      if line and not line.startswith('#'):
+        regex_array.append(line)
 
     for root, dirs, files in os.walk(TMP_PREFIX):
         for file in files:
             f = os.path.join(root, file).replace(TMP_PREFIX, '')
             if OS == 'Windows':
                 f = f.replace('\\', '/')
-            if any(map(lambda x: re.search(x, f), included)):
-                print("Filter: " + f)
-                if not os.path.isdir(os.path.join(prefix, os.path.dirname(f))):
-                    os.makedirs(os.path.join(prefix, os.path.dirname(f)))
-                shutil.copy(os.path.join(TMP_PREFIX, f), os.path.join(prefix, f))
+            for regex in regex_array:
+                if args['verbose']: print ("Applying regex " + regex + " to file " + f)
+                if re.search(regex, f):
+                    print ("Adding to final binary " + f)
+                    if not os.path.isdir(os.path.join(prefix, os.path.dirname(f))):
+                        os.makedirs(os.path.join(prefix, os.path.dirname(f)))
+                    shutil.copy(os.path.join(TMP_PREFIX, f), os.path.join(prefix, f))
+                    break
 
+
+def runSingleTest(test, Idx = 2, Recurse = True):
+    try:
+        test = os.path.join(CLING_SRC_DIR, 'test', test)
+
+        if os.path.isdir(test):
+            if Recurse:
+                for t in os.listdir(test):
+                    if t.endswith('.C'):
+                        runSingleTest(os.path.join(test, t), Idx, False)
+            return
+
+        cling = os.path.join(LLVM_OBJ_ROOT, 'bin', 'cling')
+        flags = [[''], ['-Xclang -verify']]
+        flags.append([f[0] for f in flags])
+        for flag in flags[Idx]:
+            cmd = 'cat %s | %s --nologo 2>&1 %s' % (test, cling, flag)
+            print('** %s **' % cmd)
+            subprocess.check_call(cmd, cwd=os.path.dirname(test), shell=True)
+
+    except Exception as err:
+        print("Error running '%s': %s" % (test, err))
+        pass
 
 def test_cling():
     box_draw("Run Cling test suite")
+    # Run single tests on CI with this
+    # runSingleTest('Prompt/ValuePrinter/Regression.C')
+    # runSingleTest('Prompt/ValuePrinter')
     build = Build('check-cling')
 
 def tarball():
@@ -624,8 +632,8 @@ def cleanup():
         return
 
     box_draw("Clean up")
-    if os.path.isdir(os.path.join(workdir, 'builddir')):
-        print("Skipping build directory: " + os.path.join(workdir, 'builddir'))
+    if os.path.isdir(LLVM_OBJ_ROOT):
+        print("Skipping build directory: " + LLVM_OBJ_ROOT)
 
     if os.path.isdir(prefix):
         print("Remove directory: " + prefix)
@@ -902,7 +910,7 @@ cling (%s-1) unstable; urgency=low
 
     if '~dev' in VERSION:
         TAG = str(float(VERSION[:VERSION.find('~')]) - 0.1)
-        template = exec_subprocess_check_output(GIT_LOG + ' v' + TAG + '...HEAD --format="  * %s" | fmt -s', CLING_SRC_DIR)
+        template = exec_subprocess_check_output('git log v' + TAG + '...HEAD --format="  * %s" | fmt -s', CLING_SRC_DIR)
 
         f = open(os.path.join(prefix, 'debian', 'changelog'), 'a+')
         f.write(template)
@@ -927,7 +935,7 @@ cling (%s-1) unstable; urgency=low
             f.write('cling (' + TAG + '-1) unstable; urgency=low\n')
             f.close()
             STABLE_FLAG = '1'
-            template = exec_subprocess_check_output(GIT_LOG + ' v' + CMP + '...v' + TAG + '--format="  * %s" | fmt -s',
+            template = exec_subprocess_check_output('git log v' + CMP + '...v' + TAG + '--format="  * %s" | fmt -s',
                                                     CLING_SRC_DIR)
 
             f = open(os.path.join(prefix, 'debian', 'changelog'), 'a+')
@@ -943,7 +951,7 @@ cling (%s-1) unstable; urgency=low
     f.write('\nOld Changelog:\n')
     f.close()
 
-    template = exec_subprocess_check_output(GIT_LOG + ' v0.1 --format="  * %s%n -- %an <%ae>  %cD%n"', CLING_SRC_DIR)
+    template = exec_subprocess_check_output('git log v0.1 --format="  * %s%n -- %an <%ae>  %cD%n"', CLING_SRC_DIR)
 
     f = open(os.path.join(prefix, 'debian', 'changelog'), 'a+')
     f.write(template.encode('utf-8'))
@@ -1164,8 +1172,24 @@ def get_win_dep():
         print('Remove file: ' + os.path.join(TMP_PREFIX, 'nsis-%s.zip' % (NSIS_VERSION)))
         os.rename(os.path.join(TMP_PREFIX, 'bin', 'nsis-%s' % (NSIS_VERSION)), os.path.join(TMP_PREFIX, 'bin', 'nsis'))
 
-    box_draw("Download CMake v2.6.2 required for Windows")
+    def tryCmake(cmake):
+        try:
+            rslt = exec_subprocess_check_output(cmake + ' --version', TMP_PREFIX)
+            vers = [int(v) for v in rslt.split()[2].split('.')]
+            if vers[0] >= 3 and (vers[1] > 6 or (vers[1]==6 and vers[2] >= 2)):
+                return cmake
+        except:
+            pass
+        return False
 
+    global CMAKE
+    cmakeEXE = tryCmake('cmake.exe') or tryCmake(CMAKE)
+    if cmakeEXE:
+        CMAKE = cmakeEXE
+        box_draw("Using previous CMake: %s" % cmakeEXE)
+        return
+
+    box_draw("Download CMake v3.6.2 required for Windows")
     if is_os_64bit():
         wget(url='https://cmake.org/files/v3.6/cmake-3.6.2-win64-x64.zip',
              out_dir=TMP_PREFIX, rename_file='cmake-3.6.2.zip')
@@ -1181,11 +1205,9 @@ def get_win_dep():
     print('Remove file: ' + os.path.join(TMP_PREFIX, 'cmake-3.6.2.zip'))
 
     if is_os_64bit():
-        os.rename(os.path.join(tmp_bin_dir, 'cmake-3.6.2-win64-x64'),
-                  os.path.join(TMP_PREFIX, 'bin', 'cmake'))
+        os.rename(os.path.join(tmp_bin_dir, 'cmake-3.6.2-win64-x64'), cmakeDir)
     else:
-        os.rename(os.path.join(tmp_bin_dir, 'cmake-3.6.2-win32-x86'),
-                  os.path.join(TMP_PREFIX, 'bin', 'cmake'))
+        os.rename(os.path.join(tmp_bin_dir, 'cmake-3.6.2-win32-x86'), cmakeDir)
     print()
 
 
@@ -1633,11 +1655,11 @@ parser.add_argument('--dmg-tag', help='Package the snapshot of a given tag in a 
 
 # Variable overrides
 parser.add_argument('--with-llvm-url', action='store', help='Specify an alternate URL of LLVM repo',
-                    default='https://github.com/vgvassilev/llvm.git')
+                    default='http://root.cern.ch/git/llvm.git')
 parser.add_argument('--with-clang-url', action='store', help='Specify an alternate URL of Clang repo',
-                    default='https://github.com/vgvassilev/clang.git')
+                    default='http://root.cern.ch/git/clang.git')
 parser.add_argument('--with-cling-url', action='store', help='Specify an alternate URL of Cling repo',
-                    default='https://github.com/vgvassilev/cling.git')
+                    default='https://github.com/root-project/cling.git')
 
 parser.add_argument('--no-test', help='Do not run test suite of Cling', action='store_true')
 parser.add_argument('--skip-cleanup', help='Do not clean up after a build', action='store_true')
@@ -1714,16 +1736,6 @@ else:
 ###############################################################################
 
 workdir = os.path.abspath(os.path.expanduser(args['with_workdir']))
-
-# This is needed in Windows
-if not os.path.isdir(workdir):
-    os.makedirs(workdir)
-
-if os.path.isdir(TMP_PREFIX):
-    shutil.rmtree(TMP_PREFIX)
-
-os.makedirs(TMP_PREFIX)
-
 srcdir = os.path.join(workdir, 'cling-src')
 CLING_SRC_DIR = os.path.join(srcdir, 'tools', 'cling')
 CPT_SRC_DIR = os.path.join(CLING_SRC_DIR, 'tools', 'packaging')
@@ -1755,12 +1767,16 @@ if args['current_dev']:
       CLING_BRANCH, CLANG_BRANCH, LLVM_BRANCH = cDev[9:].split(',')
 
 # llvm_revision = urlopen(
-#    "https://raw.githubusercontent.com/vgvassilev/cling/master/LastKnownGoodLLVMSVNRevision.txt").readline().strip().decode(
+#    "https://raw.githubusercontent.com/root-project/cling/master/LastKnownGoodLLVMSVNRevision.txt").readline().strip().decode(
 #   'utf-8')
 VERSION = ''
 REVISION = ''
 # Travis needs some special behaviour
 TRAVIS_BUILD_DIR = os.environ.get('TRAVIS_BUILD_DIR', None)
+APPVEYOR_BUILD_FOLDER = os.environ.get('APPVEYOR_BUILD_FOLDER', None)
+
+# Make sure git log is invoked without a pager.
+os.environ['GIT_PAGER']=''
 
 print('Cling Packaging Tool (CPT)')
 print('Arguments vector: ' + str(sys.argv))
@@ -1779,6 +1795,14 @@ if args['compiler']:
 if len(sys.argv) == 1:
     print("Error: no options passed")
     parser.print_help()
+
+# This is needed in Windows
+if not os.path.isdir(workdir):
+    os.makedirs(workdir)
+if not (TRAVIS_BUILD_DIR or APPVEYOR_BUILD_FOLDER) and os.path.isdir(TMP_PREFIX):
+    shutil.rmtree(TMP_PREFIX)
+if not os.path.isdir(TMP_PREFIX):
+    os.makedirs(TMP_PREFIX)
 
 if args['check_requirements']:
     box_draw('Check availability of required softwares')
@@ -1906,7 +1930,7 @@ Install/update the required packages by:
 
 if args['current_dev']:
     llvm_revision = urlopen(
-        "https://raw.githubusercontent.com/vgvassilev/cling/master/LastKnownGoodLLVMSVNRevision.txt").readline().strip().decode(
+        "https://raw.githubusercontent.com/root-project/cling/master/LastKnownGoodLLVMSVNRevision.txt").readline().strip().decode(
         'utf-8')
     fetch_llvm(llvm_revision)
     fetch_clang(llvm_revision)
@@ -1915,13 +1939,22 @@ if args['current_dev']:
 
     # Travis has already cloned the repo out, so don;t do it again
     # Particularly important for building a pull-request
-    if TRAVIS_BUILD_DIR:
+    if TRAVIS_BUILD_DIR or APPVEYOR_BUILD_FOLDER:
+        ciCloned = TRAVIS_BUILD_DIR if TRAVIS_BUILD_DIR else APPVEYOR_BUILD_FOLDER
         clingDir = os.path.join(srcdir, 'tools', 'cling')
-        os.rename(TRAVIS_BUILD_DIR, clingDir)
-        TRAVIS_BUILD_DIR = clingDir
+        if TRAVIS_BUILD_DIR:
+            os.rename(ciCloned, clingDir)
+            TRAVIS_BUILD_DIR = clingDir
+        else:
+            # Cannot move the directory: it is being used by another process
+            os.mkdir(clingDir)
+            for f in os.listdir(APPVEYOR_BUILD_FOLDER):
+                shutil.move(os.path.join(APPVEYOR_BUILD_FOLDER, f), clingDir)
+            APPVEYOR_BUILD_FOLDER = clingDir
+
         # Check validity and show some info
-        box_draw("Using Travis clone, last 5 commits:")
-        exec_subprocess_call(GIT_LOG + ' -5 --pretty=format:"%h <%ae> %<(60,trunc)%s"', TRAVIS_BUILD_DIR)
+        box_draw("Using CI clone, last 5 commits:")
+        exec_subprocess_call('git log -5 --pretty="format:%h <%ae> %<(60,trunc)%s"', clingDir)
         print('\n')
     else:
         fetch_cling(CLING_BRANCH if CLING_BRANCH else 'master')
@@ -1995,9 +2028,8 @@ if args['last_stable']:
     # FIXME
     assert tag[0] is "v"
     assert CLING_BRANCH == None
-
     llvm_revision = urlopen(
-        'https://raw.githubusercontent.com/vgvassilev/cling/%s/LastKnownGoodLLVMSVNRevision.txt' % tag
+        'https://raw.githubusercontent.com/root-project/cling/%s/LastKnownGoodLLVMSVNRevision.txt' % tag
     ).readline().strip().decode('utf-8')
 
     fetch_llvm(llvm_revision)
@@ -2067,7 +2099,7 @@ if args['last_stable']:
 
 if args['tarball_tag']:
     llvm_revision = urlopen(
-        "https://raw.githubusercontent.com/vgvassilev/cling/%s/LastKnownGoodLLVMSVNRevision.txt" % args[
+        "https://raw.githubusercontent.com/root-project/cling/%s/LastKnownGoodLLVMSVNRevision.txt" % args[
             'tarball_tag']).readline().strip().decode(
         'utf-8')
     fetch_llvm(llvm_revision)
@@ -2096,7 +2128,7 @@ if args['tarball_tag']:
 
 if args['deb_tag']:
     llvm_revision = urlopen(
-        "https://raw.githubusercontent.com/vgvassilev/cling/%s/LastKnownGoodLLVMSVNRevision.txt" % args[
+        "https://raw.githubusercontent.com/root-project/cling/%s/LastKnownGoodLLVMSVNRevision.txt" % args[
             'deb_tag']).readline().strip().decode(
         'utf-8')
     fetch_llvm(llvm_revision)
@@ -2116,7 +2148,7 @@ if args['deb_tag']:
 
 if args['rpm_tag']:
     llvm_revision = urlopen(
-        "https://raw.githubusercontent.com/vgvassilev/cling/%s/LastKnownGoodLLVMSVNRevision.txt" % args[
+        "https://raw.githubusercontent.com/root-project/cling/%s/LastKnownGoodLLVMSVNRevision.txt" % args[
             'rpm_tag']).readline().strip().decode(
         'utf-8')
     fetch_llvm(llvm_revision)
@@ -2136,7 +2168,7 @@ if args['rpm_tag']:
 
 if args['nsis_tag']:
     llvm_revision = urlopen(
-        "https://raw.githubusercontent.com/vgvassilev/cling/%s/LastKnownGoodLLVMSVNRevision.txt" % args[
+        "https://raw.githubusercontent.com/root-project/cling/%s/LastKnownGoodLLVMSVNRevision.txt" % args[
             'nsis_tag']).readline().strip().decode(
         'utf-8')
     fetch_llvm(llvm_revision)
@@ -2155,7 +2187,7 @@ if args['nsis_tag']:
 
 if args['dmg_tag']:
     llvm_revision = urlopen(
-        "https://raw.githubusercontent.com/vgvassilev/cling/%s/LastKnownGoodLLVMSVNRevision.txt" % args[
+        "https://raw.githubusercontent.com/root-project/cling/%s/LastKnownGoodLLVMSVNRevision.txt" % args[
             'dmg_tag']).readline().strip().decode(
         'utf-8')
     fetch_llvm(llvm_revision)
@@ -2174,7 +2206,7 @@ if args['dmg_tag']:
 
 if args['create_dev_env']:
     llvm_revision = urlopen(
-        "https://raw.githubusercontent.com/vgvassilev/cling/master/LastKnownGoodLLVMSVNRevision.txt"
+        "https://raw.githubusercontent.com/root-project/cling/master/LastKnownGoodLLVMSVNRevision.txt"
     ).readline().strip().decode('utf-8')
     fetch_llvm(llvm_revision)
     fetch_clang(llvm_revision)

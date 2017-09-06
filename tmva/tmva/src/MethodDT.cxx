@@ -121,7 +121,7 @@ using std::vector;
 
 REGISTER_METHOD(DT)
 
-ClassImp(TMVA::MethodDT)
+ClassImp(TMVA::MethodDT);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// the standard constructor for just an ordinar "decision trees"
@@ -148,6 +148,7 @@ ClassImp(TMVA::MethodDT)
    , fUsePoissonNvars(0)  // don't use this initialisation, only here to make  Coverity happy. Is set in Init()
    , fDeltaPruneStrength(0)
 {
+      fPruneBeforeBoost = kFALSE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -172,6 +173,7 @@ TMVA::MethodDT::MethodDT( DataSetInfo& dsi,
    , fUseNvars(0)
    , fDeltaPruneStrength(0)
 {
+      fPruneBeforeBoost = kFALSE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

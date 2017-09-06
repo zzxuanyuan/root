@@ -8,10 +8,12 @@
   *                                                                    *
   **********************************************************************/
 
-#include "Math/IFunction.h"
-#include "Math/VirtualIntegrator.h"
 #include "Math/Integrator.h"
+
+#include "Math/Error.h"
+#include "Math/IFunction.h"
 #include "Math/IntegratorMultiDim.h"
+#include "Math/VirtualIntegrator.h"
 
 #include "Math/AdaptiveIntegratorMultiDim.h"
 
@@ -149,7 +151,7 @@ VirtualIntegratorOneDim * IntegratorOneDim::CreateIntegrator(IntegrationOneDim::
 
 
    {
-      R__LOCKGUARD2(gROOTMutex);
+      R__LOCKGUARD(gROOTMutex);
       TPluginHandler *h;
       //gDebug = 3;
       if ((h = gROOT->GetPluginManager()->FindHandler("ROOT::Math::VirtualIntegrator", "GSLIntegrator"))) {
@@ -206,7 +208,7 @@ VirtualIntegratorMultiDim * IntegratorMultiDim::CreateIntegrator(IntegrationMult
 #else  // use ROOT Plugin-Manager to instantiate GSLMCIntegrator
 
    {
-      R__LOCKGUARD2(gROOTMutex);
+      R__LOCKGUARD(gROOTMutex);
       const char * pluginName = "GSLMCIntegrator";
       TPluginHandler *h = nullptr;
       //gDebug = 3;

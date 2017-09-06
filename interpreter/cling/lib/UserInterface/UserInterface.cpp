@@ -25,25 +25,6 @@
 #include "clang/Basic/LangOptions.h"
 #include "clang/Frontend/CompilerInstance.h"
 
-// Fragment copied from LLVM's raw_ostream.cpp
-#if defined(HAVE_UNISTD_H)
-# include <unistd.h>
-#endif
-
-#if defined(_MSC_VER)
-#ifndef STDIN_FILENO
-# define STDIN_FILENO 0
-#endif
-#ifndef STDOUT_FILENO
-# define STDOUT_FILENO 1
-#endif
-#ifndef STDERR_FILENO
-# define STDERR_FILENO 2
-#endif
-#endif
-
-#include <memory>
-
 namespace {
   ///\brief Class that specialises the textinput TabCompletion to allow Cling
   /// to code complete through its own textinput mechanism which is part of the
@@ -64,6 +45,27 @@ namespace {
       m_ParentInterpreter.codeComplete(Line.GetText(), Cursor, Completions);
       return true;
     }
+  };
+
+  ///\brief Delays ~TextInput until after ~StreamReader and ~TerminalDisplay
+  ///
+  class TextInputHolder {
+    textinput::StreamReader* m_Reader;
+    textinput::TerminalDisplay* m_Display;
+    textinput::TextInput m_Input;
+
+  public:
+    TextInputHolder(llvm::SmallString<512>& Hist)
+        : m_Reader(textinput::StreamReader::Create()),
+          m_Display(textinput::TerminalDisplay::Create()),
+          m_Input(*m_Reader, *m_Display, Hist.empty() ? 0 : Hist.c_str()) {}
+
+    ~TextInputHolder() {
+      delete m_Reader;
+      delete m_Display;
+    }
+
+    textinput::TextInput* operator -> () { return &m_Input; }
   };
 }
 
@@ -88,33 +90,32 @@ namespace cling {
         llvm::sys::path::append(histfilePath, ".cling_history");
     }
 
-    using namespace textinput;
-    std::unique_ptr<StreamReader> R(StreamReader::Create());
-    std::unique_ptr<TerminalDisplay> D(TerminalDisplay::Create());
-    TextInput TI(*R, *D, histfilePath.empty() ? 0 : histfilePath.c_str());
+    TextInputHolder TI(histfilePath);
 
     // Inform text input about the code complete consumer
     // TextInput owns the TabCompletion.
     UITabCompletion* Completion =
                       new UITabCompletion(m_MetaProcessor->getInterpreter());
-    TI.SetCompletion(Completion);
+    TI->SetCompletion(Completion);
 
+    bool Done = false;
     std::string Line;
     std::string Prompt("[cling]$ ");
 
-    while (true) {
+    while (!Done) {
       try {
         m_MetaProcessor->getOuts().flush();
         {
           MetaProcessor::MaybeRedirectOutputRAII RAII(*m_MetaProcessor);
-          TI.SetPrompt(Prompt.c_str());
-          if (TI.ReadInput() == TextInput::kRREOF)
+          TI->SetPrompt(Prompt.c_str());
+          Done = TI->ReadInput() == textinput::TextInput::kRREOF;
+          TI->TakeInput(Line);
+          if (Done && Line.empty())
             break;
-          TI.TakeInput(Line);
         }
 
         cling::Interpreter::CompilationResult compRes;
-        const int indent = m_MetaProcessor->process(Line.c_str(), compRes);
+        const int indent = m_MetaProcessor->process(Line, compRes);
 
         // Quit requested?
         if (indent < 0)

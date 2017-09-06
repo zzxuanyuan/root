@@ -39,7 +39,7 @@ Singleton class for global configuration settings used by TMVA.
 #include "Rtypes.h"
 #include "TString.h"
 
-ClassImp(TMVA::Config)
+ClassImp(TMVA::Config);
 
 #if __cplusplus > 199711L
 std::atomic<TMVA::Config*> TMVA::Config::fgConfigPtr{ 0 };
@@ -56,7 +56,7 @@ TMVA::Config::Config() :
    fUseColoredConsole    ( kTRUE  ),
    fSilent               ( kFALSE ),
    fWriteOptionsReference( kFALSE ),
-   fDrawProgressBar      ( kTRUE ),
+   fDrawProgressBar      ( kFALSE ),
    fLogger               ( new MsgLogger("Config") )
 {
    // plotting

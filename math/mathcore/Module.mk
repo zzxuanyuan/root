@@ -70,10 +70,11 @@ MATHCOREDICTH :=  TComplex.h \
                 Math/ChebyshevPol.h \
                 Math/SpecFuncMathCore.h \
                 Math/DistFuncMathCore.h \
+                Math/Types.h \
 		$(patsubst $(MODDIRI)/%,%,$(filter-out $(MODDIRI)/Fit/LinkDef%,$(filter-out $(MODDIRI)/Fit/Chi2Grad%,$(wildcard $(MODDIRI)/Fit/*.h))))
 
 MATHCOREMH1   := $(filter-out $(MODDIRI)/LinkDef%,$(wildcard $(MODDIRI)/*.h))
-MATHCOREMH2   := $(filter-out $(MODDIRI)/Math/LinkDef%,$(wildcard $(MODDIRI)/Math/*.h))
+MATHCOREMH2   := $(filter-out $(MODDIRI)/Math/LinkDef%,$(wildcard $(MODDIRI)/Math/*.h $(MODDIRI)/Math/*.hxx))
 MATHCOREMH3   := $(filter-out $(MODDIRI)/Math/LinkDef%,$(wildcard $(MODDIRI)/Math/*.icc))
 MATHCOREMH4   := $(filter-out $(MODDIRI)/Fit/LinkDef%,$(wildcard $(MODDIRI)/Fit/*.h))
 MATHCOREMH    := $(MATHCOREMH1) $(MATHCOREMH2) $(MATHCOREMH3) $(MATHCOREMH4)
@@ -111,6 +112,12 @@ INCLUDEFILES += $(MATHCOREDEP)
                 test-$(MODNAME)
 
 include/Math/%.h: $(MATHCOREDIRI)/Math/%.h
+		@(if [ ! -d "include/Math" ]; then    \
+		   mkdir -p include/Math;             \
+		fi)
+		cp $< $@
+
+include/Math/%.hxx:  $(MATHCOREDIRI)/Math/%.hxx
 		@(if [ ! -d "include/Math" ]; then    \
 		   mkdir -p include/Math;             \
 		fi)
@@ -185,3 +192,6 @@ $(MATHCOREDO): CXXFLAGS += -DUSE_ROOT_ERROR
 $(MATHCOREDO1) : NOOPT = $(OPT)
 $(MATHCOREDO2) : NOOPT = $(OPT)
 $(MATHCOREDO3) : NOOPT = $(OPT)
+
+# Avoid warnings from triangle.c in classic builds
+$(MATHCOREO): CFLAGS += -Wno-strict-overflow -Wno-maybe-uninitialized -Wno-parentheses-equality

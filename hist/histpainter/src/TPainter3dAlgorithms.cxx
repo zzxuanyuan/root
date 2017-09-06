@@ -73,7 +73,7 @@ extern TH1  *gCurrentHist; //these 3 globals should be replaced by class members
 extern Hoption_t Hoption;
 extern Hparam_t  Hparam;
 
-ClassImp(TPainter3dAlgorithms)
+ClassImp(TPainter3dAlgorithms);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Lego default constructor
@@ -121,7 +121,7 @@ TPainter3dAlgorithms::TPainter3dAlgorithms(): TObject(), TAttLine(1,1,1), TAttFi
    for (i=0;i<258;i++)     { fColorLevel[i] = 0; }
    for (i=0;i<1200;i++)    { fPlines[i] = 0.; }
    for (i=0;i<200;i++)     { fT[i] = 0.; }
-   for (i=0;i<2000;i++)    { fU[i] = 0.; fD[i] = 0.; }
+   for (i=0;i<2*NumOfSlices;i++)  { fU[i] = 0.; fD[i] = 0.; }
    for (i=0;i<12;i++)      { fVls[i] = 0.; }
    for (i=0;i<257;i++)     { fFunLevel[i] = 0.; }
    for (i=0;i<183;i++)     { fAphi[i] = 0.; }
@@ -204,7 +204,7 @@ TPainter3dAlgorithms::TPainter3dAlgorithms(Double_t *rmin, Double_t *rmax, Int_t
    for (i=0;i<258;i++)     { fColorLevel[i] = 0; }
    for (i=0;i<1200;i++)    { fPlines[i] = 0.; }
    for (i=0;i<200;i++)     { fT[i] = 0.; }
-   for (i=0;i<2000;i++)    { fU[i] = 0.; fD[i] = 0.; }
+   for (i=0;i<2*NumOfSlices;i++)  { fU[i] = 0.; fD[i] = 0.; }
    for (i=0;i<12;i++)      { fVls[i] = 0.; }
    for (i=0;i<257;i++)     { fFunLevel[i] = 0.; }
    for (i=0;i<183;i++)     { fAphi[i] = 0.; }
@@ -330,7 +330,7 @@ void TPainter3dAlgorithms::FrontBox(Double_t ang)
       r[i*3 + 2] = av[i*3 + 2];
       view->WCtoNDC(&r[i*3],&r[i*3]);
    }
- 
+
    //          Draw frame
    SetLineColor(1);
    SetLineStyle(1);
@@ -461,7 +461,7 @@ void TPainter3dAlgorithms::DrawFaceMode1(Int_t *, Double_t *xyz, Int_t np, Int_t
 
    //          Transfer to normalised coordinates
    Bool_t ifneg = false;
-   Double_t x[12+1], y[12+1], p3[3];
+   Double_t x[12+1] = {0}, y[12+1] = {0}, p3[3];
    for (Int_t i = 0; i < np; ++i) {
       Int_t k = iface[i];
       if (k < 0) { k = -k; ifneg = true; }
@@ -510,7 +510,7 @@ void TPainter3dAlgorithms::DrawFaceMode2(Int_t *, Double_t *xyz, Int_t np, Int_t
    if (!view) return;
 
    //          Transfer to normalised coordinates
-   Double_t x[12+1], y[12+1], p3[3*12];
+   Double_t x[12+1] = {0}, y[12+1] = {0}, p3[3*12];
    for (Int_t i = 0; i < np; ++i) {
       Int_t k = iface[i];
       view->WCtoNDC(&xyz[(k-1)*3], &p3[i*3]);
@@ -566,7 +566,7 @@ void TPainter3dAlgorithms::DrawFaceMode3(Int_t *icodes, Double_t *xyz, Int_t np,
    if (!view) return;
 
    //          Transfer to normalised coordinates
-   Double_t x[4+1], y[4+1], p3[3];
+   Double_t x[4+1] = {0}, y[4+1] = {0}, p3[3];
    for (Int_t i = 0; i < np; ++i) {
       Int_t k = iface[i];
       view->WCtoNDC(&xyz[(k-1)*3], p3);
@@ -614,7 +614,7 @@ void TPainter3dAlgorithms::DrawFaceMove1(Int_t *icodes, Double_t *xyz, Int_t np,
    if (!view) return;
 
    //          Copy points to array
-   Double_t p3[3*12];
+   Double_t p3[3*12] = {0};
    for (Int_t i = 0; i < np; ++i) {
       Int_t k = iface[i];
       p3[i*3 + 0] = xyz[(k-1)*3 + 0];
@@ -777,7 +777,7 @@ void TPainter3dAlgorithms::DrawFaceMove3(Int_t *icodes, Double_t *xyz, Int_t np,
    TAttLine::Modify();
 
    //          Copy points to array
-   Double_t p3[3*12], ttt[12];
+   Double_t p3[3*12] = {0}, ttt[12] = {0};
    for (Int_t i = 0; i < np; ++i) {
       Int_t k = iface[i];
       p3[i*3 + 0] = xyz[(k-1)*3 + 0];
@@ -799,7 +799,7 @@ void TPainter3dAlgorithms::DrawFaceMove3(Int_t *icodes, Double_t *xyz, Int_t np,
    }
 
    Double_t p1[3], p2[3], x[2], y[2];
-   for (Int_t kpol=0; kpol<2; ++kpol) { 
+   for (Int_t kpol = 0; kpol < 2; ++kpol) {
       if (npol[kpol] == 0) continue;
       Int_t nv = npol[kpol];
       Int_t iv = ipol[kpol];
@@ -833,6 +833,76 @@ void TPainter3dAlgorithms::DrawFaceMove3(Int_t *icodes, Double_t *xyz, Int_t np,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Draw level lines without hidden line removal
+///
+/// \param[in] icodes   set of codes for the line
+/// \param[in] xyz   coordinates of nodes
+/// \param[in] np   number of nodes
+/// \param[in] iface   face
+/// \param[in] tt   additional function defined on this face
+
+void TPainter3dAlgorithms::DrawLevelLines(Int_t *icodes, Double_t *xyz, Int_t np,
+                                          Int_t *iface, Double_t *tt)
+{
+   TView *view = 0;
+   if (gPad) view = gPad->GetView();
+   if (!view) return;
+
+   //          Set graphics attributes
+   if (icodes[2] == 0) {  // frame
+      SetLineColor(1);
+      SetLineStyle(1);
+      SetLineWidth(1);
+   } else {
+      SetLineColor(fEdgeColor[fEdgeIdx]);
+      SetLineStyle(fEdgeStyle[fEdgeIdx]);
+      SetLineWidth(fEdgeWidth[fEdgeIdx]);
+   }
+   TAttLine::Modify();
+
+   //          Copy points to array
+   Double_t p3[3*12] = {0}, ttt[12] = {0};
+   for (Int_t i = 0; i < np; ++i) {
+      Int_t k = iface[i];
+      p3[i*3 + 0] = xyz[(k-1)*3 + 0];
+      p3[i*3 + 1] = xyz[(k-1)*3 + 1];
+      p3[i*3 + 2] = xyz[(k-1)*3 + 2];
+      ttt[i] = tt[i];
+   }
+
+   //          Subdivide quadrilateral in two triangles
+   Int_t npol[2] = { np, 0 }; // number of vertices in subpolygons
+   Int_t ipol[2] = {  0, 0 }; // first vertices in subpolygons
+   if (np == 4 && icodes[2] != 0) {
+      p3[4*3 + 0] = p3[0];
+      p3[4*3 + 1] = p3[1];
+      p3[4*3 + 2] = p3[2];
+      ttt[4] = tt[0];
+      npol[0] = 3;  npol[1] = 3;
+      ipol[0] = 0;  ipol[1] = 2;
+   }
+
+   Double_t p1[3], p2[3], x[2], y[2];
+   for (Int_t kpol = 0; kpol < 2; ++kpol) {
+      if (npol[kpol] == 0) continue;
+      Int_t nv = npol[kpol];
+      Int_t iv = ipol[kpol];
+
+      //          Find level lines
+      FindLevelLines(nv, &p3[3*iv], &ttt[iv]);
+
+      //          Draw level lines
+      for (Int_t il = 0; il < fNlines; ++il) {
+         view->WCtoNDC(&fPlines[6*il + 0], p1);
+         view->WCtoNDC(&fPlines[6*il + 3], p2);
+         x[0] = p1[0]; y[0] = p1[1];
+	 x[1] = p2[0]; y[1] = p2[1];
+         gPad->PaintPolyLine(2, x, y);
+      }
+   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Draw face - 1st variant for "RASTER SCREEN" algorithm (draw face with level lines)
 ///
 /// \param[in] icodes   set of codes for the line
@@ -848,7 +918,7 @@ void TPainter3dAlgorithms::DrawFaceRaster1(Int_t *icodes, Double_t *xyz, Int_t n
    if (!view) return;
 
    //          Copy vertices to array
-   Double_t p3[3*12], pp[2*12];
+   Double_t p3[3*12] = {0}, pp[2*12] = {0};
    for (Int_t i = 0; i < np; ++i) {
       Int_t k = iface[i];
       if (k < 0) k = -k;
@@ -1294,68 +1364,50 @@ L500:
 
 void TPainter3dAlgorithms::FindLevelLines(Int_t np, Double_t *f, Double_t *t)
 {
-   Int_t i, k, i1, i2, il, nl;
-   Double_t tmin, tmax, d1, d2;
-
-   /* Parameter adjustments */
-   --t;
-   f -= 4;
-
-   /* Function Body */
    fNlines = 0;
    if (fNlevel == 0) return;
-   nl = fNlevel;
-   if (nl < 0) nl = -nl;
+   Int_t nl = TMath::Abs(fNlevel);
 
    // Find Tmin and Tmax
-   tmin = t[1];
-   tmax = t[1];
-   for (i = 2; i <= np; ++i) {
+   Double_t tmin = t[0];
+   Double_t tmax = t[0];
+   for (Int_t i = 1; i < np; ++i) {
       if (t[i] < tmin) tmin = t[i];
       if (t[i] > tmax) tmax = t[i];
    }
    if (tmin >= fFunLevel[nl - 1]) return;
    if (tmax <= fFunLevel[0])      return;
 
-   //          F I N D   L E V E L S   L I N E S
-   for (il = 1; il <= nl; ++il) {
+   //          Find level lines
+   for (Int_t il = 1; il <= nl; ++il) {
       if (tmin >= fFunLevel[il - 1]) continue;
-      if (tmax <= fFunLevel[il - 1]) return;
+      if (tmax <  fFunLevel[il - 1]) return;
       if (fNlines >= 200)            return;
-      ++fNlines;
+      fNlines++;
       fLevelLine[fNlines - 1] = il;
-      k = 0;
-      for (i = 1; i <= np; ++i) {
-         i1 = i;
-         i2 = i + 1;
-         if (i == np) i2 = 1;
-         d1 = t[i1] - fFunLevel[il - 1];
-         d2 = t[i2] - fFunLevel[il - 1];
-         if (d1) {
-            if (d1*d2 < 0) goto L320;
-            continue;
-         }
-         ++k;
-         fPlines[(k + 2*fNlines)*3 - 9] = f[i1*3 + 1];
-         fPlines[(k + 2*fNlines)*3 - 8] = f[i1*3 + 2];
-         fPlines[(k + 2*fNlines)*3 - 7] = f[i1*3 + 3];
-         if (k == 1) continue;
-         goto L340;
-L320:
-         ++k;
+      Int_t kp = 0;
+      for (Int_t i = 0; i < np; ++i) {
+         Int_t i1 = i;
+         Int_t i2 = (i == np-1) ? 0 : i+1;
+         Double_t d1 = t[i1] - fFunLevel[il - 1];
+         Double_t d2 = t[i2] - fFunLevel[il - 1];
+         if (d1 == 0) d1 = 1e-99;
+         if (d2 == 0) d2 = 1e-99;
+         if (d1*d2 > 0) continue;
+
+         //          find point
+         kp++;
          d1 /= t[i2] - t[i1];
          d2 /= t[i2] - t[i1];
-         fPlines[(k + 2*fNlines)*3 - 9] = d2*f[i1*3 + 1] - d1*f[i2*3 + 1];
-         fPlines[(k + 2*fNlines)*3 - 8] = d2*f[i1*3 + 2] - d1*f[i2*3 + 2];
-         fPlines[(k + 2*fNlines)*3 - 7] = d2*f[i1*3 + 3] - d1*f[i2*3 + 3];
-         if (k != 1) goto L340;
+         fPlines[(kp + 2*fNlines)*3 - 9] = d2*f[i1*3 + 0] - d1*f[i2*3 + 0];
+         fPlines[(kp + 2*fNlines)*3 - 8] = d2*f[i1*3 + 1] - d1*f[i2*3 + 1];
+         fPlines[(kp + 2*fNlines)*3 - 7] = d2*f[i1*3 + 2] - d1*f[i2*3 + 2];
+         if (kp == 2) break;
       }
-      if (k != 2) {
+      if (kp != 2) {
          Error("FindLevelLines", "number of points for line not equal 2");
-         --fNlines;
+         fNlines--;
       }
-L340:
-      if (il < 0) return;
    }
 }
 
@@ -1975,8 +2027,8 @@ void TPainter3dAlgorithms::InitMoveScreen(Double_t xmin, Double_t xmax)
 {
    const Double_t VERY_BIG = 9e+99;
    fX0 = xmin;
-   fDX = (xmax - xmin) / 2000;
-   for (Int_t i = 0; i < 2000; ++i) {
+   fDX = (xmax - xmin) / NumOfSlices;
+   for (Int_t i = 0; i < NumOfSlices; ++i) {
       fU[2*i + 0] = -VERY_BIG;
       fU[2*i + 1] = -VERY_BIG;
       fD[2*i + 0] =  VERY_BIG;
@@ -2269,7 +2321,7 @@ void TPainter3dAlgorithms::LegoCartesian(Double_t, Int_t nx, Int_t ny, const cha
          if (Hoption.Zero) {
             Double_t total_content = 0;
             for (Int_t iv = 1; iv < nv; ++iv) { total_content += v[iv]; }
-            if (total_content == 0) continue;
+            if (total_content <= Hparam.zmin) continue;
          }
          icodes[0] = ix;
          icodes[1] = iy;
@@ -4492,14 +4544,14 @@ L510:
    for ( i=1 ; i<=3 ; i++ ) {
       i1 = i;
       i2 = i + 1;
-      if (i == 3) i2 = 1;
+      if (i2 == 4) i2 = 1;
       k1 = TMath::Abs(itria[n-1][i1-1]);
       k2 = TMath::Abs(itria[n-1][i2-1]);
       if (TMath::Abs(xyz[k1-1][0]-xyz[k2-1][0]) > kDel) continue;
       if (TMath::Abs(xyz[k1-1][1]-xyz[k2-1][1]) > kDel) continue;
       if (TMath::Abs(xyz[k1-1][2]-xyz[k2-1][2]) > kDel) continue;
       i3 = i - 1;
-      if (i == 1) i3 = 3;
+      if (i3 == 0) i3 = 3;
       goto L530;
    }
    goto L500;

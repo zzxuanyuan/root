@@ -14,6 +14,9 @@
 
 #include "TAttMarker.h"
 
+#include "TFitResultPtr.h"
+
+
 class TCollection;
 class TF1;
 class TGraphAsymmErrors;
@@ -55,12 +58,12 @@ protected:
       TH1*          fTotalHistogram;         //histogram for total number of events
       Double_t      fWeight;                 //weight for all events (default = 1)
 
-      enum{
-         kIsBayesian       = BIT(14),              //bayesian statistics are used
-         kPosteriorMode    = BIT(15),              //use posterior mean for best estimate (Bayesian statistics)
-         kShortestInterval = BIT(16),              // use shortest interval
-         kUseBinPrior      = BIT(17),              // use a different prior for each bin
-         kUseWeights       = BIT(18)               // use weights
+      enum EStatusBits {
+         kIsBayesian       = BIT(14),  //bayesian statistics are used
+         kPosteriorMode    = BIT(15),  //use posterior mean for best estimate (Bayesian statistics)
+         kShortestInterval = BIT(16),  // use shortest interval
+         kUseBinPrior      = BIT(17),  // use a different prior for each bin
+         kUseWeights       = BIT(18)   // use weights
       };
 
       void          Build(const char* name,const char* title);
@@ -98,7 +101,7 @@ public:
       void          Fill(Bool_t bPassed,Double_t x,Double_t y=0,Double_t z=0);
       void          FillWeighted(Bool_t bPassed,Double_t weight,Double_t x,Double_t y=0,Double_t z=0);
       Int_t         FindFixBin(Double_t x,Double_t y=0,Double_t z=0) const;
-      Int_t         Fit(TF1* f1,Option_t* opt="");
+      TFitResultPtr Fit(TF1* f1,Option_t* opt="");
       // use trick of -1 to return global parameters
       Double_t      GetBetaAlpha(Int_t bin = -1) const {return (fBeta_bin_params.size() > (UInt_t)bin) ? fBeta_bin_params[bin].first : fBeta_alpha;}
       Double_t      GetBetaBeta(Int_t bin =  -1) const {return (fBeta_bin_params.size() > (UInt_t)bin) ? fBeta_bin_params[bin].second : fBeta_beta;}

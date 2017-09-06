@@ -11,7 +11,7 @@ set(headers1 Roo1DTable.h RooAbsArg.h RooAbsBinning.h RooAbsCategory.h RooAbsCat
              RooAbsRealLValue.h RooAbsRootFinder.h RooAbsString.h RooAcceptReject.h RooAdaptiveGaussKronrodIntegrator1D.h
              RooAddGenContext.h RooAddition.h RooAddModel.h RooAICRegistry.h RooArgList.h RooArgProxy.h RooArgSet.h 
              RooBanner.h RooBinning.h RooBinnedGenContext.h RooBrentRootFinder.h  RooCategory.h RooCategoryProxy.h RooCategorySharedProperties.h
-             RooCatType.h RooChi2Var.h RooClassFactory.h RooCmdArg.h RooCmdConfig.h RooComplex.h RooConstVar.h RooConvCoefVar.h
+             RooCatType.h RooChi2Var.h RooClassFactory.h RooCmdArg.h RooCmdConfig.h RooConstVar.h RooConvCoefVar.h
              RooConvGenContext.h RooConvIntegrandBinding.h RooCurve.h RooCustomizer.h RooDataHist.h RooDataProjBinding.h RooDataSet.h
              RooDirItem.h RooDLLSignificanceMCSModule.h RooAbsAnaConvPdf.h RooAddPdf.h RooEfficiency.h RooEffProd.h RooExtendPdf.h )
 set(headers2 RooDouble.h RooEffGenContext.h RooEllipse.h RooErrorHandler.h RooErrorVar.h RooFit.h RooFitResult.h RooFormula.h
@@ -44,9 +44,8 @@ set(headers4 RooConstraintSum.h RooRecursiveFraction.h RooDataWeightedAverage.h
              RooGenFitStudy.h RooProofDriverSelector.h RooStudyPackage.h RooCompositeDataStore.h RooRangeBoolean.h 
              RooVectorDataStore.h RooUnitTest.h RooExtendedBinding.h RooAbsMoment.h RooFirstMoment.h RooSecondMoment.h)
 
-ROOT_GENERATE_DICTIONARY(G__RooFitCore MODULE RooFitCore ${headers1} ${headers2} ${headers3} ${headers4} LINKDEF LinkDef.h OPTIONS "-writeEmptyRootPCM")
-
-ROOT_LINKER_LIBRARY(RooFitCore *.cxx G__RooFitCore.cxx LIBRARIES Core
-                    DEPENDENCIES Hist Graf Matrix Tree Minuit RIO MathCore Foam)
-ROOT_INSTALL_HEADERS()
+ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
+                              HEADERS ${headers1} ${headers2} ${headers3} ${headers4}
+                              DICTIONARY_OPTIONS "-writeEmptyRootPCM"
+                              DEPENDENCIES Core Hist Graf Matrix Tree Minuit RIO MathCore Foam)
 

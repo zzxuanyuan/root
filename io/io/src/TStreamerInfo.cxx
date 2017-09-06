@@ -80,7 +80,7 @@ std::atomic<Int_t> TStreamerInfo::fgCount{0};
 
 const Int_t kMaxLen = 1024;
 
-ClassImp(TStreamerInfo)
+ClassImp(TStreamerInfo);
 
 static void R__TObjArray_InsertAt(TObjArray *arr, TObject *obj, Int_t at)
 {
@@ -166,6 +166,7 @@ TStreamerInfo::TStreamerInfo()
    fWriteObjectWise = 0;
    fWriteMemberWise = 0;
    fWriteMemberWiseVecPtr = 0;
+   fWriteText = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -199,6 +200,7 @@ TStreamerInfo::TStreamerInfo(TClass *cl)
    fWriteObjectWise = 0;
    fWriteMemberWise = 0;
    fWriteMemberWiseVecPtr = 0;
+   fWriteText = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -217,6 +219,7 @@ TStreamerInfo::~TStreamerInfo()
    delete fWriteObjectWise;
    delete fWriteMemberWise;
    delete fWriteMemberWiseVecPtr;
+   delete fWriteText;
 
    if (!fElements) return;
    fElements->Delete();
@@ -1500,24 +1503,6 @@ namespace {
       return 0;
    }
 
-   bool HasScope(const std::string &name)
-   {
-      // return true if the type name has a scope in it.
-
-      for(size_t i = 0, level = 0; i<name.length(); ++i) {
-         switch (name[i]) {
-            case '<': ++level; break;
-            case '>': --level; break;
-            case ':': if (level == 0) {
-               // we encountered a scope not within a template
-               // parameter.
-               return true;
-            }
-         }
-      } // for each in name
-      return false;
-   }
-
    TClass *FixCollectionV5(TClass *context, TClass *oldClass, TClass *newClass)
    {
       assert(oldClass->GetCollectionProxy() && newClass->GetCollectionProxy());
@@ -1529,8 +1514,8 @@ namespace {
       if (stlkind == ROOT::kSTLmap || stlkind == ROOT::kSTLmultimap) {
 
          if (current->GetValueClass() == nullptr) {
-            // This should really never happen (the contain of map should always
-            // be a pair and thus have a TClass ... so lert's just give up
+            // This should really never happen (the content of map should always
+            // be a pair and thus have a TClass ... so let's just give up ...
             // It actually happens in the case where one of the member is an
             // enum that is part of dictionary payload that is not yet
             // autoloaded.
@@ -1564,10 +1549,10 @@ namespace {
             TClass *secondAltCl = secondOldCl;
             std::string firstNewName;
             std::string secondNewName;
-            if (firstNewCl && !HasScope(inside[1])) {
+            if (firstNewCl && !firstOldCl) {
                firstAltCl = FindAlternate(context, inside[1], firstNewName);
             }
-            if (secondNewCl && !HasScope(inside[2])) {
+            if (secondNewCl && !secondOldCl) {
                secondAltCl = FindAlternate(context, inside[2], secondNewName);
             }
             if ((firstNewCl && firstAltCl != firstOldCl) ||
@@ -1601,12 +1586,6 @@ namespace {
          std::vector<std::string> inside;
          int nestedLoc;
          TClassEdit::GetSplit( oldClass->GetName(), inside, nestedLoc, TClassEdit::kLong64 );
-
-         // Does the type already have a scope, in which case,
-         // (at least for now), let's assume it is already fine.
-         if (HasScope(inside[1])) {
-            return oldClass;
-         }
 
          // Now let's if we can find this missing type.
          std::string newName;
@@ -2084,8 +2063,9 @@ void TStreamerInfo::BuildOld()
       TClassRef newClass;
 
       if (dm && dm->IsPersistent()) {
-         if (dm->GetDataType()) {
-            Bool_t isArray = element->GetArrayLength() >= 1;
+         auto theType = isStdArray ? dt : dm->GetDataType();
+         if (theType) {
+            Bool_t isArray = isStdArray || element->GetArrayLength() >= 1;
             Bool_t hasCount = element->HasCounter();
             // data member is a basic type
             if ((fClass == TObject::Class()) && !strcmp(dm->GetName(), "fBits")) {
@@ -2093,7 +2073,7 @@ void TStreamerInfo::BuildOld()
                newType = kBits;
             } else {
                // All the values of EDataType have the same semantic in EReadWrite
-               newType = (EReadWrite)dm->GetDataType()->GetType();
+               newType = (EReadWrite)theType->GetType();
             }
             if ((newType == ::kChar_t) && dmIsPtr && !isArray && !hasCount) {
                newType = ::kCharStar;
@@ -2539,7 +2519,7 @@ void TStreamerInfo::Clear(Option_t *option)
    opt.ToLower();
 
    if (opt.Contains("build")) {
-      R__LOCKGUARD2(gInterpreterMutex);
+      R__LOCKGUARD(gInterpreterMutex);
 
       delete [] fComp;     fComp    = 0;
       delete [] fCompFull; fCompFull= 0;
@@ -2557,6 +2537,7 @@ void TStreamerInfo::Clear(Option_t *option)
       if (fWriteObjectWise) fWriteObjectWise->fActions.clear();
       if (fWriteMemberWise) fWriteMemberWise->fActions.clear();
       if (fWriteMemberWiseVecPtr) fWriteMemberWiseVecPtr->fActions.clear();
+      if (fWriteText) fWriteText->fActions.clear();
    }
 }
 

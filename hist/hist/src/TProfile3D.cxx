@@ -23,7 +23,7 @@
 
 Bool_t TProfile3D::fgApproximate = kFALSE;
 
-ClassImp(TProfile3D)
+ClassImp(TProfile3D);
 
 /** \class TProfile3D
     \ingroup Hist
@@ -55,8 +55,8 @@ ClassImp(TProfile3D)
  Example of a profile3D histogram
 ~~~~{.cpp}
 {
-    TCanvas *c1 = new TCanvas("c1","Profile histogram example",200,10,700,500);
-    hprof3d  = new TProfile3D("hprof3d","Profile of pt versus px, py and pz",40,-4,4,40,-4,4,40,0,20);
+    auto c1 = new TCanvas("c1","Profile histogram example",200,10,700,500);
+    auto hprof3d  = new TProfile3D("hprof3d","Profile of pt versus px, py and pz",40,-4,4,40,-4,4,40,0,20);
     Double_t px, py, pz, pt;
     TRandom3 r(0);
     for ( Int_t i=0; i<25000; i++) {
@@ -639,7 +639,7 @@ Int_t TProfile3D::Fill(Double_t x, Double_t y, Double_t z, Double_t t, Double_t 
    Int_t bin,binx,biny,binz;
 
    if (fTmin != fTmax) {
-      if (t <fTmin || z> fTmax || TMath::IsNaN(t) ) return -1;
+      if (t <fTmin || t> fTmax || TMath::IsNaN(t) ) return -1;
    }
 
    Double_t u= w; // (w > 0 ? w : -w);

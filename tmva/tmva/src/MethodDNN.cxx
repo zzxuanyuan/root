@@ -61,28 +61,21 @@ Deep Neural Network Implementation.
 
 REGISTER_METHOD(DNN)
 
-ClassImp(TMVA::MethodDNN)
-
-using TMVA::DNN::EActivationFunction;
-using TMVA::DNN::ELossFunction;
-using TMVA::DNN::EInitialization;
-using TMVA::DNN::EOutputFunction;
+ClassImp(TMVA::MethodDNN);
 
 namespace TMVA
 {
+   using namespace DNN;
 
-////////////////////////////////////////////////////////////////////////////////
-/// standard constructor
+   ////////////////////////////////////////////////////////////////////////////////
+   /// standard constructor
 
-TMVA::MethodDNN::MethodDNN(const TString& jobName,
-                           const TString& methodTitle,
-                           DataSetInfo& theData,
-                           const TString& theOption)
-   : MethodBase( jobName, Types::kDNN, methodTitle, theData, theOption),
-     fWeightInitialization(), fOutputFunction(), fLayoutString(), fErrorStrategy(),
-     fTrainingStrategyString(), fWeightInitializationString(), fArchitectureString(),
-     fTrainingSettings(), fResume(false), fSettings()
-{
+   TMVA::MethodDNN::MethodDNN(const TString &jobName, const TString &methodTitle, DataSetInfo &theData,
+                              const TString &theOption)
+      : MethodBase(jobName, Types::kDNN, methodTitle, theData, theOption), fWeightInitialization(), fOutputFunction(),
+        fLayoutString(), fErrorStrategy(), fTrainingStrategyString(), fWeightInitializationString(),
+        fArchitectureString(), fTrainingSettings(), fResume(false), fSettings()
+   {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -95,6 +88,8 @@ TMVA::MethodDNN::MethodDNN(DataSetInfo& theData,
      fTrainingStrategyString(), fWeightInitializationString(), fArchitectureString(),
      fTrainingSettings(), fResume(false), fSettings()
 {
+        fWeightInitialization = DNN::EInitialization::kGauss;
+        fOutputFunction = DNN::EOutputFunction::kSigmoid;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +97,8 @@ TMVA::MethodDNN::MethodDNN(DataSetInfo& theData,
 
 TMVA::MethodDNN::~MethodDNN()
 {
-   // nothing to be done
+        fWeightInitialization = DNN::EInitialization::kGauss;
+        fOutputFunction = DNN::EOutputFunction::kSigmoid;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -125,6 +121,15 @@ Bool_t TMVA::MethodDNN::HasAnalysisType(Types::EAnalysisType type,
 
 void TMVA::MethodDNN::Init()
 {
+   // TODO: Remove once weights are considered by the method.
+   auto &dsi = this->DataInfo();
+   auto numClasses = dsi.GetNClasses();
+   for (UInt_t i = 0; i < numClasses; ++i) {
+      if (dsi.GetWeightExpression(i) != TString("")) {
+         Log() << kERROR << "Currently event weights are not considered properly by this method." << Endl;
+         break;
+      }
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -156,9 +161,7 @@ void TMVA::MethodDNN::DeclareOptions()
    AddPreDefVal(TString("XAVIER"));
    AddPreDefVal(TString("XAVIERUNIFORM"));
 
-   DeclareOptionRef(fArchitectureString="STANDARD",
-                    "Architecture",
-                    "Which architecture to perform the training on.");
+   DeclareOptionRef(fArchitectureString = "CPU", "Architecture", "Which architecture to perform the training on.");
    AddPreDefVal(TString("STANDARD"));
    AddPreDefVal(TString("CPU"));
    AddPreDefVal(TString("GPU"));
@@ -411,6 +414,58 @@ void TMVA::MethodDNN::ProcessOptions()
       Log() << kINFO
             << "Will ignore negative events in training!"
             << Endl;
+   }
+
+   if (fArchitectureString == "STANDARD") {
+      Log() << kERROR << "The STANDARD architecture has been deprecated. "
+                         "Please use Architecture=CPU or Architecture=CPU."
+                         "See the TMVA Users' Guide for instructions if you "
+                         "encounter problems."
+            << Endl;
+      Log() << kFATAL << "The STANDARD architecture has been deprecated. "
+                         "Please use Architecture=CPU or Architecture=CPU."
+                         "See the TMVA Users' Guide for instructions if you "
+                         "encounter problems."
+            << Endl;
+   }
+
+   if (fArchitectureString == "OPENCL") {
+      Log() << kERROR << "The OPENCL architecture has not been implemented yet. "
+                         "Please use Architecture=CPU or Architecture=CPU for the "
+                         "time being. See the TMVA Users' Guide for instructions "
+                         "if you encounter problems."
+            << Endl;
+      Log() << kFATAL << "The OPENCL architecture has not been implemented yet. "
+                         "Please use Architecture=CPU or Architecture=CPU for the "
+                         "time being. See the TMVA Users' Guide for instructions "
+                         "if you encounter problems."
+            << Endl;
+   }
+
+   if (fArchitectureString == "GPU") {
+#ifndef DNNCUDA // Included only if DNNCUDA flag is _not_ set.
+      Log() << kERROR << "CUDA backend not enabled. Please make sure "
+                         "you have CUDA installed and it was successfully "
+                         "detected by CMAKE."
+            << Endl;
+      Log() << kFATAL << "CUDA backend not enabled. Please make sure "
+                         "you have CUDA installed and it was successfully "
+                         "detected by CMAKE."
+            << Endl;
+#endif // DNNCUDA
+   }
+
+   if (fArchitectureString == "CPU") {
+#ifndef DNNCPU // Included only if DNNCPU flag is _not_ set.
+      Log() << kERROR << "Multi-core CPU backend not enabled. Please make sure "
+                         "you have a BLAS implementation and it was successfully "
+                         "detected by CMake as well that the imt CMake flag is set."
+            << Endl;
+      Log() << kFATAL << "Multi-core CPU backend not enabled. Please make sure "
+                         "you have a BLAS implementation and it was successfully "
+                         "detected by CMake as well that the imt CMake flag is set."
+            << Endl;
+#endif // DNNCPU
    }
 
    //
@@ -786,16 +841,16 @@ void TMVA::MethodDNN::TrainGpu()
       using DataLoader_t = TDataLoader<TMVAInput_t, TCuda<>>;
 
       size_t nThreads = 1;
-      DataLoader_t trainingData(GetEventCollection(Types::kTraining),
-                                nTrainingSamples,
-                                net.GetBatchSize(),
-                                net.GetInputWidth(),
+      TMVAInput_t trainingTuple =
+          std::tie(GetEventCollection(Types::kTraining), DataInfo());
+      TMVAInput_t testTuple =
+          std::tie(GetEventCollection(Types::kTesting), DataInfo());
+      DataLoader_t trainingData(trainingTuple, nTrainingSamples,
+                                net.GetBatchSize(), net.GetInputWidth(),
                                 net.GetOutputWidth(), nThreads);
-      DataLoader_t testData(GetEventCollection(Types::kTesting),
-                            nTestSamples,
-                            testNet.GetBatchSize(),
-                            net.GetInputWidth(),
-                            net.GetOutputWidth(), nThreads);
+      DataLoader_t testData(testTuple, nTestSamples, testNet.GetBatchSize(),
+                            net.GetInputWidth(), net.GetOutputWidth(),
+                            nThreads);
       DNN::TGradientDescent<TCuda<>> minimizer(settings.learningRate,
                                              settings.convergenceSteps,
                                              settings.testInterval);
@@ -949,23 +1004,23 @@ void TMVA::MethodDNN::TrainCpu()
          p = 1.0 - p;
       }
       net.SetDropoutProbabilities(dropoutVector);
-      net.SetDropoutProbabilities(settings.dropoutProbabilities);
+      //net.SetDropoutProbabilities(settings.dropoutProbabilities);
       net.InitializeGradients();
       auto testNet = net.CreateClone(settings.batchSize);
 
       using DataLoader_t = TDataLoader<TMVAInput_t, TCpu<>>;
 
       size_t nThreads = 1;
-      DataLoader_t trainingData(GetEventCollection(Types::kTraining),
-                                nTrainingSamples,
-                                net.GetBatchSize(),
-                                net.GetInputWidth(),
+      TMVAInput_t trainingTuple =
+          std::tie(GetEventCollection(Types::kTraining), DataInfo());
+      TMVAInput_t testTuple =
+          std::tie(GetEventCollection(Types::kTesting), DataInfo());
+      DataLoader_t trainingData(trainingTuple, nTrainingSamples,
+                                net.GetBatchSize(), net.GetInputWidth(),
                                 net.GetOutputWidth(), nThreads);
-      DataLoader_t testData(GetEventCollection(Types::kTesting),
-                            nTestSamples,
-                            testNet.GetBatchSize(),
-                            net.GetInputWidth(),
-                            net.GetOutputWidth(), nThreads);
+      DataLoader_t testData(testTuple, nTestSamples, testNet.GetBatchSize(),
+                            net.GetInputWidth(), net.GetOutputWidth(),
+                            nThreads);
       DNN::TGradientDescent<TCpu<>> minimizer(settings.learningRate,
                                                settings.convergenceSteps,
                                                settings.testInterval);
@@ -1028,7 +1083,8 @@ void TMVA::MethodDNN::TrainCpu()
             for (auto batch : testData) {
                auto inputMatrix  = batch.GetInput();
                auto outputMatrix = batch.GetOutput();
-               testError += testNet.Loss(inputMatrix, outputMatrix);
+               auto weightMatrix = batch.GetWeights();
+               testError += testNet.Loss(inputMatrix, outputMatrix, weightMatrix);
             }
             testError /= (Double_t) (nTestSamples / settings.batchSize);
 
@@ -1039,7 +1095,8 @@ void TMVA::MethodDNN::TrainCpu()
             for (auto batch : trainingData) {
                auto inputMatrix  = batch.GetInput();
                auto outputMatrix = batch.GetOutput();
-               trainingError += net.Loss(inputMatrix, outputMatrix);
+               auto weightMatrix = batch.GetWeights();
+               trainingError += net.Loss(inputMatrix, outputMatrix, weightMatrix);
             }
             trainingError /= (Double_t) (nTrainingSamples / settings.batchSize);
 

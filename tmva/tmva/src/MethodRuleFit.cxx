@@ -62,7 +62,7 @@ using std::min;
 
 REGISTER_METHOD(RuleFit)
 
-ClassImp(TMVA::MethodRuleFit)
+ClassImp(TMVA::MethodRuleFit);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// standard constructor
@@ -111,6 +111,7 @@ ClassImp(TMVA::MethodRuleFit)
    , fRuleMinDist(0)
    , fLinQuantile(0)
 {
+      fMonitorNtuple = NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -158,6 +159,7 @@ TMVA::MethodRuleFit::MethodRuleFit( DataSetInfo& theData,
    , fRuleMinDist(0)
    , fLinQuantile(0)
 {
+      fMonitorNtuple = NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

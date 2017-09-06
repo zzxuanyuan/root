@@ -10,6 +10,9 @@
 #include "DeclUnloader.h"
 
 #include "cling/Utils/AST.h"
+#ifdef LLVM_ON_WIN32
+#include "cling/Utils/Diagnostics.h"
+#endif
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclContextInternals.h"
@@ -361,8 +364,8 @@ bool DeclUnloader::VisitRedeclarable(clang::Redeclarable<T>* R, DeclContext* DC)
       return;
     const SourceManager& SM = m_Sema->getSourceManager();
     FileID FID = SM.getFileID(SM.getSpellingLoc(Loc));
-    if (!FID.isInvalid() && FID >= m_CurTransaction->getBufferFID()
-        && !m_FilesToUncache.count(FID))
+    // FID == m_CurTransaction->getBufferFID() done last in TransactionUnloader
+    if (!FID.isInvalid() && FID > m_CurTransaction->getBufferFID())
       m_FilesToUncache.insert(FID);
   }
 
@@ -837,8 +840,21 @@ bool DeclUnloader::VisitRedeclarable(clang::Redeclarable<T>* R, DeclContext* DC)
     // getting out of sync.
     //
     if (m_CurTransaction->getState() == Transaction::kCommitted) {
+
       std::string mangledName;
-      utils::Analyze::maybeMangleDeclName(GD, mangledName);
+      {
+#if LLVM_ON_WIN32
+        // clang cannot mangle everything in the ms-abi.
+#ifndef NDEBUG
+        utils::DiagnosticsStore Errors(m_Sema->getDiagnostics(), false, false);
+        assert(Errors.empty() || (Errors.size() == 1 &&
+               Errors[0].getMessage().startswith("cannot mangle this")));
+#else
+        utils::DiagnosticsOverride IgnoreMangleErrors(m_Sema->getDiagnostics());
+#endif
+#endif
+        utils::Analyze::maybeMangleDeclName(GD, mangledName);
+      }
 
       // Handle static locals. void func() { static int var; } is represented
       // in the llvm::Module is a global named @func.var
@@ -857,7 +873,7 @@ bool DeclUnloader::VisitRedeclarable(clang::Redeclarable<T>* R, DeclContext* DC)
         GlobalValueEraser GVEraser(m_CodeGen);
         GVEraser.EraseGlobalValue(GV);
       }
-      m_CodeGen->forgetDecl(GD);
+      m_CodeGen->forgetDecl(GD, mangledName);
     }
   }
 

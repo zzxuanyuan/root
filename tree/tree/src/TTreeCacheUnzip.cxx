@@ -70,7 +70,7 @@ TTreeCacheUnzip::EParUnzipMode TTreeCacheUnzip::fgParallel = TTreeCacheUnzip::kD
 // Hence there is no good reason to limit it too much
 Double_t TTreeCacheUnzip::fgRelBuffSize = .5;
 
-ClassImp(TTreeCacheUnzip)
+ClassImp(TTreeCacheUnzip);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -444,8 +444,8 @@ void TTreeCacheUnzip::ResetCache()
 {
    // If root spawn unzipping tasks before, we need to wait here until all basket in current cache are unzipped.
    if(root) {
-      root->wait_for_all();
-      root->destroy(*root);
+      root->wait();
+      delete root;
    }
 
    root = nullptr;
@@ -597,93 +597,74 @@ Int_t TTreeCacheUnzip::UnzipCache(Int_t reqi, Int_t &locbuffsz, char *&locbuff)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// This tbb task class try unzipping a set of baskets, we use a vector to
-/// store the basket indices to be unzipped by this task.
+/// We create a dummy task and spawn a MappingTask which spawn actual unzipping
+/// tasks at background without competing with main thread.
 
-class UnzipTask: public tbb::task {
-
-private:
-   TTreeCacheUnzip* cache;
+Int_t TTreeCacheUnzip::CreateTasks()
+{
+/*
    std::vector<Int_t> indices;
- 
-public:
-   UnzipTask(TTreeCacheUnzip* c, std::vector<Int_t>& ids) {
-      cache = c;
-      indices = ids;
-   }
 
-   tbb::task* execute() {
+   auto unzipBasketFunction = [&]() {
+      printf("in unzipBasketFunction, indices.size() = %lu\n", indices.size());//##
+      for(int i = 0; i < indices.size(); ++i) printf("indices[%d]=%d\n",i,indices[i]);//##
       for (auto ii : indices) {
          Byte_t oldV = 0;
          Byte_t newV = 1;
-         if(cache->fUnzipStatus[ii].compare_exchange_weak(oldV, newV, std::memory_order_release, std::memory_order_relaxed)) {
+         if(fUnzipStatus[ii].compare_exchange_weak(oldV, newV, std::memory_order_release, std::memory_order_relaxed)) {
             Int_t locbuffsz = 16384;
             char *locbuff = new char[16384];
-            Int_t res = cache->UnzipCache(ii, locbuffsz, locbuff);
+            Int_t res = UnzipCache(ii, locbuffsz, locbuff);
             if(res)
                if (gDebug > 0)
                   Info("UnzipCache", "Unzipping failed or cache is in learning state");
          }
       }
       return nullptr;
-   }
-};
+   };
+*/
+   auto assignBasketFunction = [&]() {
 
-////////////////////////////////////////////////////////////////////////////////
-/// This tbb task class allocate UnzipTasks to unzip baskets. We spawn a 
-/// UnzipTask to unzip a set of basksets where their accumulated size goes 
-/// beyond 100KB.
-
-class MappingTask: public tbb::task {
-
-private:
-   TTreeCacheUnzip* cache;
-   std::vector<Int_t> indices;
-
-public:
-   MappingTask(TTreeCacheUnzip* c) {
-      cache = c;
-      indices.clear();
-   }
-
-   tbb::task* execute() {
       Int_t accusz = 0;
-      Int_t taskcnt = 0;
-      tbb::task_list tl;
-
-      UnzipTask* t = nullptr;
-      for (Int_t ii = 0; ii < cache->fNseek; ii++) {
+      std::vector<Int_t> indices;
+      tbb::task_group *tg = new tbb::task_group();
+      for (Int_t i = 0; i < fNseek; i++) {
          while (accusz < 102400) {
-            accusz += cache->fSeekLen[ii];
-            indices.push_back(ii);
-            ii++;
-            if (ii >= cache->fNseek) break;
+            accusz += fSeekLen[i];
+            indices.push_back(i);
+            i++;
+            if (i >= fNseek) break;
          }
-         if (ii < cache->fNseek) ii--;
-         t = new(this->allocate_child()) UnzipTask(cache, indices);
-         tl.push_back(*t);
-         taskcnt++;
+         if (i < fNseek) i--;
+         tg->run([&, indices]() {
+//            printf("in unzipBasketFunction, indices.size() = %lu\n", indices.size());//##
+//            for(unsigned int j = 0; j < indices.size(); ++j) printf("indices[%u]=%d\n",j,indices[j]);//##
+            for (auto j : indices) {
+               Byte_t oldV = 0;
+               Byte_t newV = 1;
+               if(fUnzipStatus[j].compare_exchange_weak(oldV, newV, std::memory_order_release, std::memory_order_relaxed)) {
+                  Int_t locbuffsz = 16384;
+                  char *locbuff = new char[16384];
+                  Int_t res = UnzipCache(j, locbuffsz, locbuff);
+                  if(res)
+                     if (gDebug > 0)
+                        Info("UnzipCache", "Unzipping failed or cache is in learning state");
+               }
+            }
+            return nullptr; 
+         });
          indices.clear();
          accusz = 0;
       }
-      this->set_ref_count(taskcnt+1);
-      this->spawn_and_wait_for_all(tl);
+      tg->wait();
+      delete tg;
       return nullptr;
-   }
-};
+   };
 
-////////////////////////////////////////////////////////////////////////////////
-/// We create a dummy task and spawn a MappingTask which spawn actual unzipping
-/// tasks at background without competing with main thread.
+   root = new tbb::task_group();
 
-Int_t TTreeCacheUnzip::CreateTasks()
-{
-   root = new(tbb::task::allocate_root()) tbb::empty_task;
-
-   root->set_ref_count(2);
-   MappingTask* t = new(root->allocate_child()) MappingTask(this);
-   root->spawn(*t);
-
+   root->run(assignBasketFunction);
+//   printf("at the end of CreateTasks\n");//##
    return 0;
 }
 

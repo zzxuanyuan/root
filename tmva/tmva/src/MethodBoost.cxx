@@ -87,7 +87,7 @@ on the test sample.
 
 REGISTER_METHOD(Boost)
 
-ClassImp(TMVA::MethodBoost)
+ClassImp(TMVA::MethodBoost);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -112,6 +112,8 @@ ClassImp(TMVA::MethodBoost)
    , fMVAvalues(0)
 {
    fMVAvalues = new std::vector<Float_t>;
+   fDataSetManager = NULL;
+   fHistoricBoolOption = kFALSE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,6 +137,8 @@ TMVA::MethodBoost::MethodBoost( DataSetInfo& dsi,
    , fMVAvalues(0)
 {
    fMVAvalues = new std::vector<Float_t>;
+   fDataSetManager = NULL;
+   fHistoricBoolOption = kFALSE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

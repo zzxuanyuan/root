@@ -29,6 +29,7 @@
 #include "clang/Frontend/VerifyDiagnosticConsumer.h"
 #include "clang/Serialization/SerializationDiagnostic.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Sema/Sema.h"
 #include "clang/Sema/SemaDiagnostic.h"
 #include "clang/Serialization/ASTReader.h"
@@ -39,6 +40,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Target/TargetOptions.h"
@@ -51,6 +53,22 @@ using namespace clang;
 using namespace cling;
 
 namespace {
+  static constexpr unsigned CxxStdCompiledWith() {
+    // The value of __cplusplus in GCC < 5.0 (e.g. 4.9.3) when
+    // either -std=c++1y or -std=c++14 is specified is 201300L, which fails
+    // the test for C++14 or more (201402L) as previously specified.
+    // I would claim that the check should be relaxed to:
+#if __cplusplus > 201402L
+    return 17;
+#elif __cplusplus > 201103L || (defined(LLVM_ON_WIN32) && _MSC_VER >= 1900)
+    return 14;
+#elif __cplusplus >= 201103L
+    return 11;
+#else
+#error "Unknown __cplusplus version"
+#endif
+  }
+
   // This function isn't referenced outside its translation unit, but it
   // can't use the "static" keyword because its address is used for
   // GetMainExecutable (since some platforms don't support taking the
@@ -150,7 +168,31 @@ namespace {
   }
 
 #endif
-  
+
+  static std::string getResourceDir(const char* llvmdir) {
+    if (!llvmdir) {
+      // FIXME: The first arg really does need to be argv[0] on FreeBSD.
+      //
+      // Note: The second arg is not used for Apple, FreeBSD, Linux,
+      //       or cygwin, and can only be used on systems which support
+      //       the use of dladdr().
+      //
+      // Note: On linux and cygwin this uses /proc/self/exe to find the path
+      // Note: On Apple it uses _NSGetExecutablePath().
+      // Note: On FreeBSD it uses getprogpath().
+      // Note: Otherwise it uses dladdr().
+      //
+      return CompilerInvocation::GetResourcesPath(
+          "cling", (void*)intptr_t(GetExecutablePath));
+    } else {
+      std::string resourcePath;
+      llvm::SmallString<512> tmp(llvmdir);
+      llvm::sys::path::append(tmp, "lib", "clang", CLANG_VERSION_STRING);
+      resourcePath.assign(&tmp[0], tmp.size());
+      return resourcePath;
+    }
+  }
+
   ///\brief Adds standard library -I used by whatever compiler is found in PATH.
   static void AddHostArguments(llvm::StringRef clingBin,
                                std::vector<const char*>& args,
@@ -292,38 +334,12 @@ namespace {
           sArguments.addArgument("-isysroot", std::move(sysRoot));
         }
       }
-
-    #if defined(__GLIBCXX__)
-      // Avoid '__float128 is not supported on this target' errors
-      if (!opts.StdVersion)
-        sArguments.addArgument("-std=c++11");
-    #endif //__GLIBCXX__
   #endif // __APPLE__
 
 #endif // _MSC_VER
 
       if (!opts.ResourceDir && !opts.NoBuiltinInc) {
-        std::string resourcePath;
-        if (!llvmdir) {
-          // FIXME: The first arg really does need to be argv[0] on FreeBSD.
-          //
-          // Note: The second arg is not used for Apple, FreeBSD, Linux,
-          //       or cygwin, and can only be used on systems which support
-          //       the use of dladdr().
-          //
-          // Note: On linux and cygwin this uses /proc/self/exe to find the path
-          // Note: On Apple it uses _NSGetExecutablePath().
-          // Note: On FreeBSD it uses getprogpath().
-          // Note: Otherwise it uses dladdr().
-          //
-          resourcePath
-            = CompilerInvocation::GetResourcesPath("cling",
-                                            (void*)intptr_t(GetExecutablePath));
-        } else {
-          llvm::SmallString<512> tmp(llvmdir);
-          llvm::sys::path::append(tmp, "lib", "clang", CLANG_VERSION_STRING);
-          resourcePath.assign(&tmp[0], tmp.size());
-        }
+        std::string resourcePath = getResourceDir(llvmdir);
 
         // FIXME: Handle cases, where the cling is part of a library/framework.
         // There we can't rely on the find executable logic.
@@ -344,46 +360,34 @@ namespace {
     }
   }
 
-  static void SetClingCustomLangOpts(LangOptions& Opts) {
+  static void SetClingCustomLangOpts(LangOptions& Opts,
+                                     const CompilerOptions& CompilerOpts) {
     Opts.EmitAllDecls = 0; // Otherwise if PCH attached will codegen all decls.
 #ifdef _MSC_VER
-#if 0 //_HAS_EXCEPTIONS
-// FIXME: Disable exceptions on Windows for the time being.
-// Enabling exceptions here makes 42 more tests failing.
-// For example, CodeGeneration\RecursiveInit.C raises a unhandled exception in
-// WinEHPrepare.cpp, at:
-//      if (UserI->isEHPad())
-//        report_fatal_error("Cleanup funclets for the MSVC++ personality cannot "
-//                           "contain exceptional actions");
-    Opts.Exceptions = 1;
-    if (Opts.CPlusPlus) {
-      Opts.CXXExceptions = 1;
-    }
-#else
-    Opts.Exceptions = 0;
-    if (Opts.CPlusPlus) {
-      Opts.CXXExceptions = 0;
-    }
-#endif
-    Opts.Trigraphs = 0;
-    Opts.RTTIData = 0;
-    Opts.setDefaultCallingConv(clang::LangOptions::DCC_CDecl);
 #ifdef _DEBUG
     // FIXME: This requires bufferoverflowu.lib, but adding:
     // #pragma comment(lib, "bufferoverflowu.lib") still gives errors!
     // Opts.setStackProtector(clang::LangOptions::SSPStrong);
-#endif
+#endif // _DEBUG
+#ifdef _CPPRTTI
+    Opts.RTTIData = 1;
 #else
-    Opts.Exceptions = 1;
-    if (Opts.CPlusPlus) {
-      Opts.CXXExceptions = 1;
-    }
+    Opts.RTTIData = 0;
+#endif // _CPPRTTI
+    Opts.Trigraphs = 0;
+    Opts.setDefaultCallingConv(clang::LangOptions::DCC_CDecl);
+#else // !_MSC_VER
     Opts.Trigraphs = 1;
 //    Opts.RTTIData = 1;
 //    Opts.DefaultCallingConventions = 1;
 //    Opts.StackProtector = 0;
 #endif // _MSC_VER
-    Opts.Deprecated = 1;
+
+    Opts.Exceptions = 1;
+    if (Opts.CPlusPlus) {
+      Opts.CXXExceptions = 1;
+    }
+
     //Opts.Modules = 1;
 
     // See test/CodeUnloading/PCH/VTables.cpp which implicitly compares clang
@@ -392,38 +396,32 @@ namespace {
     // Except -fexceptions -fcxx-exceptions.
 
     Opts.Deprecated = 1;
-    Opts.GNUKeywords = 0;
 
 #ifdef __APPLE__
     Opts.Blocks = 1;
     Opts.MathErrno = 0;
 #endif
 
-    // C++11 is turned on if cling is built with C++11: it's an interpreter;
-    // cross-language compilation doesn't make sense.
-    // Extracted from Boost/config/compiler.
-    // SunProCC has no C++11.
-    // VisualC's support is not obvious to extract from Boost...
-
-    // The value of __cplusplus in GCC < 5.0 (e.g. 4.9.3) when
-    // either -std=c++1y or -std=c++14 is specified is 201300L, which fails
-    // the test for C++14 or more (201402L) as previously specified.
-    // I would claim that the check should be relaxed to:
-
-#if __cplusplus > 201103L
-    if (Opts.CPlusPlus) Opts.CPlusPlus14 = 1;
-#endif
-#if __cplusplus >= 201103L
-    if (Opts.CPlusPlus) Opts.CPlusPlus11 = 1;
-#endif
-
 #ifdef _REENTRANT
     Opts.POSIXThreads = 1;
 #endif
+#ifdef __FAST_MATH__
+    Opts.FastMath = 1;
+#endif
+
+    if (CompilerOpts.DefaultLanguage(&Opts)) {
+#ifdef __STRICT_ANSI__
+      Opts.GNUMode = 0;
+#else
+      Opts.GNUMode = 1;
+#endif
+      Opts.GNUKeywords = 0;
+    }
   }
 
   static void SetClingTargetLangOpts(LangOptions& Opts,
-                                     const TargetInfo& Target) {
+                                     const TargetInfo& Target,
+                                     const CompilerOptions& CompilerOpts) {
     if (Target.getTriple().getOS() == llvm::Triple::Win32) {
       Opts.MicrosoftExt = 1;
 #ifdef _MSC_VER
@@ -433,6 +431,26 @@ namespace {
       Opts.DelayedTemplateParsing = 1;
     } else {
       Opts.MicrosoftExt = 0;
+    }
+
+    if (CompilerOpts.DefaultLanguage(&Opts)) {
+#if _GLIBCXX_USE_FLOAT128
+      // We are compiling with libstdc++ with __float128 enabled.
+      if (!Target.hasFloat128Type()) {
+        // clang currently supports native __float128 only on few targets, and
+        // this target does not have it. The most visible consequence of this is
+        // a specialization
+        //    __is_floating_point_helper<__float128>
+        // in include/c++/6.3.0/type_traits:344 that clang then rejects. The
+        // specialization is protected by !if _GLIBCXX_USE_FLOAT128 (which is
+        // unconditionally set in c++config.h) and #if !__STRICT_ANSI__. Tweak
+        // the latter by disabling GNUMode:
+        cling::errs()
+          << "Disabling gnu++: "
+             "clang has no __float128 support on this target!\n";
+        Opts.GNUMode = 0;
+      }
+#endif //_GLIBCXX_USE_FLOAT128
     }
   }
 
@@ -526,6 +544,7 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
     PPOpts.addMacroDef("__CLING__clang__=" ClingStringify(__clang__));
 #elif defined(__GNUC__)
     PPOpts.addMacroDef("__CLING__GNUC__=" ClingStringify(__GNUC__));
+    PPOpts.addMacroDef("__CLING__GNUC_MINOR__=" ClingStringify(__GNUC_MINOR__));
 #elif defined(_MSC_VER)
     PPOpts.addMacroDef("__CLING__MSVC__=" ClingStringify(_MSC_VER));
 #endif
@@ -607,20 +626,35 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
   }
 
   static bool
-  SetupCompiler(CompilerInstance* CI, bool Lang = true, bool Targ = true) {
+  SetupCompiler(CompilerInstance* CI, const CompilerOptions& CompilerOpts,
+                bool Lang = true, bool Targ = true) {
+    LangOptions& LangOpts = CI->getLangOpts();
     // Set the language options, which cling needs.
     // This may have already been done via a precompiled header
     if (Lang)
-      SetClingCustomLangOpts(CI->getLangOpts());
+      SetClingCustomLangOpts(LangOpts, CompilerOpts);
 
     PreprocessorOptions& PPOpts = CI->getInvocation().getPreprocessorOpts();
     SetPreprocessorFromBinary(PPOpts);
 
-    PPOpts.addMacroDef("__CLING__");
-    if (CI->getLangOpts().CPlusPlus11 == 1) {
-      // http://llvm.org/bugs/show_bug.cgi?id=13530
-      PPOpts.addMacroDef("__CLING__CXX11");
+    // Sanity check that clang delivered the language standard requested
+    if (CompilerOpts.DefaultLanguage(&LangOpts)) {
+      switch (CxxStdCompiledWith()) {
+        case 17: assert(LangOpts.CPlusPlus1z && "Language version mismatch");
+          // fall-through!
+        case 14: assert(LangOpts.CPlusPlus14 && "Language version mismatch");
+          // fall-through!
+        case 11: assert(LangOpts.CPlusPlus11 && "Language version mismatch");
+          break;
+        default: assert(false && "You have an unhandled C++ standard!");
+      }
     }
+
+    PPOpts.addMacroDef("__CLING__");
+    if (LangOpts.CPlusPlus11 == 1)
+      PPOpts.addMacroDef("__CLING__CXX11");
+    if (LangOpts.CPlusPlus14 == 1)
+      PPOpts.addMacroDef("__CLING__CXX14");
 
     if (CI->getDiagnostics().hasErrorOccurred()) {
       cling::errs() << "Compiler error to early in initialization.\n";
@@ -634,11 +668,11 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
       return false;
     }
 
-    CI->getTarget().adjust(CI->getLangOpts());
+    CI->getTarget().adjust(LangOpts);
 
     // This may have already been done via a precompiled header
     if (Targ)
-      SetClingTargetLangOpts(CI->getLangOpts(), CI->getTarget());
+      SetClingTargetLangOpts(LangOpts, CI->getTarget(), CompilerOpts);
 
     SetPreprocessorFromTarget(PPOpts, CI->getTarget().getTriple());
     return true;
@@ -675,24 +709,26 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
       return false;
     }
   };
-  
+
   static CompilerInstance*
   createCIImpl(std::unique_ptr<llvm::MemoryBuffer> Buffer,
                const CompilerOptions& COpts, const char* LLVMDir,
-               bool OnlyLex, bool HasInput = false) {
+               clang::ASTConsumer* customConsumer, bool OnlyLex,
+               bool HasInput = false) {
     // Follow clang -v convention of printing version on first line
     if (COpts.Verbose)
       cling::log() << "cling version " << ClingStringify(CLING_VERSION) << '\n';
+
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllAsmParsers();
+    llvm::InitializeAllAsmPrinters();
+    llvm::InitializeAllTargetMCs();
 
     // Create an instance builder, passing the LLVMDir and arguments.
     //
 
     CheckClangCompatibility();
-
-    //  Initialize the llvm library.
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmParser();
-    llvm::InitializeNativeTargetAsmPrinter();
 
     const size_t argc = COpts.Remaining.size();
     const char* const* argv = &COpts.Remaining[0];
@@ -703,6 +739,18 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
       // We do C++ by default; append right after argv[0] if no "-x" given
       argvCompile.push_back("-x");
       argvCompile.push_back( "c++");
+    }
+    if (COpts.DefaultLanguage()) {
+      // By default, set the standard to what cling was compiled with.
+      // clang::driver::Compilation will do various things while initializing
+      // and by enforcing the std version now cling is telling clang what to
+      // do, rather than after clang has dedcuded a default.
+      switch (CxxStdCompiledWith()) {
+        case 17: argvCompile.emplace_back("-std=c++1z"); break;
+        case 14: argvCompile.emplace_back("-std=c++14"); break;
+        case 11: argvCompile.emplace_back("-std=c++11"); break;
+        default: llvm_unreachable("Unrecognized C++ version");
+      }
     }
     // argv[0] already inserted, get the rest
     argvCompile.insert(argvCompile.end(), argv+1, argv + argc);
@@ -715,13 +763,13 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
     // Would be nice on Linux but will warn 'argument unused during compilation'
     // when -nostdinc++ is passed
 #ifdef __APPLE__
-      if (!COpts.StdLib) {
+    if (!COpts.StdLib) {
   #ifdef _LIBCPP_VERSION
-        argvCompile.push_back("-stdlib=libc++");
+      argvCompile.push_back("-stdlib=libc++");
   #elif defined(__GLIBCXX__)
-        argvCompile.push_back("-stdlib=libstdc++");
+      argvCompile.push_back("-stdlib=libstdc++");
   #endif
-      }
+    }
 #endif
 
     if (!COpts.HasOutput || !HasInput) {
@@ -729,8 +777,7 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
       argvCompile.push_back("-");
     }
 
-    std::unique_ptr<clang::CompilerInvocation>
-      InvocationPtr(new clang::CompilerInvocation);
+    auto InvocationPtr = std::make_shared<clang::CompilerInvocation>();
 
     // The compiler invocation is the owner of the diagnostic options.
     // Everything else points to them.
@@ -742,7 +789,12 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
       return nullptr;
     }
 
-    clang::driver::Driver Drvr(argv[0], llvm::sys::getProcessTriple(), *Diags);
+    llvm::Triple TheTriple(llvm::sys::getProcessTriple());
+#ifdef LLVM_ON_WIN32
+    // COFF format currently needs a few changes in LLVM to function properly.
+    TheTriple.setObjectFormat(llvm::Triple::ELF);
+#endif
+    clang::driver::Driver Drvr(argv[0], TheTriple.getTriple(), *Diags);
     //Drvr.setWarnMissingInput(false);
     Drvr.setCheckInputsExist(false); // think foo.C(12)
     llvm::ArrayRef<const char*>RF(&(argvCompile[0]), argvCompile.size());
@@ -769,8 +821,7 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
 
     // Create and setup a compiler instance.
     std::unique_ptr<CompilerInstance> CI(new CompilerInstance());
-    CI->setInvocation(InvocationPtr.get());
-    InvocationPtr.release();
+    CI->setInvocation(InvocationPtr);
     CI->setDiagnostics(Diags.get()); // Diags is ref-counted
     if (!OnlyLex)
       CI->getDiagnosticOpts().ShowColors = cling::utils::ColorizeOutput();
@@ -791,7 +842,7 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
                         "output is supported.\n";
         return nullptr;
       }
-      if (!SetupCompiler(CI.get()))
+      if (!SetupCompiler(CI.get(), COpts))
         return nullptr;
 
       ProcessWarningOptions(*Diags, DiagOpts);
@@ -844,7 +895,8 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
                                                CI->getFileManager(),
                                                CI->getPCHContainerReader(),
                                                false /*FindModuleFileExt*/,
-                                               listener)) {
+                                               listener,
+                                         /*ValidateDiagnosticOptions=*/false)) {
           // When running interactively pass on the info that the PCH
           // has failed so that IncrmentalParser::Initialize won't try again.
           if (!HasInput && llvm::sys::Process::StandardInIsUserInput()) {
@@ -869,7 +921,7 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
     Invocation.getFrontendOpts().DisableFree = true;
 
     // Set up compiler language and target
-    if (!SetupCompiler(CI.get(), InitLang, InitTarget))
+    if (!SetupCompiler(CI.get(), COpts, InitLang, InitTarget))
       return nullptr;
 
     // Set up source managers
@@ -915,36 +967,43 @@ static void stringifyPreprocSetting(PreprocessorOptions& PPOpts,
     CI->createASTContext();
 
     if (OnlyLex) {
+      assert(customConsumer == nullptr && "Can't specify a custom consumer"
+                                          " when in OnlyLex mode");
       class IgnoreConsumer: public clang::ASTConsumer {};
       CI->setASTConsumer(
           std::unique_ptr<clang::ASTConsumer>(new IgnoreConsumer()));
     } else {
-      std::unique_ptr<cling::DeclCollector>
-        stateCollector(new cling::DeclCollector());
-
-      // Add the callback keeping track of the macro definitions
-      PP.addPPCallbacks(stateCollector->MakePPAdapter());
-      CI->setASTConsumer(std::move(stateCollector));
+      assert(customConsumer != nullptr && "Need to specify a custom consumer"
+                                          " when not in OnlyLex mode");
+      CI->setASTConsumer(std::unique_ptr<clang::ASTConsumer>(customConsumer));
     }
 
     // Set up Sema
     CodeCompleteConsumer* CCC = 0;
     CI->createSema(TU_Complete, CCC);
 
-    // Set CodeGen options
-    // want debug info
+    // Set CodeGen options.
+    CodeGenOptions& CGOpts = CI->getCodeGenOpts();
 #ifdef _MSC_VER
-    CI->getCodeGenOpts().MSVolatile = 1;
-    CI->getCodeGenOpts().RelaxedAliasing = 1;
-    CI->getCodeGenOpts().EmitCodeView = 1;
-    CI->getCodeGenOpts().CXXCtorDtorAliases = 1;
+    CGOpts.MSVolatile = 1;
+    CGOpts.RelaxedAliasing = 1;
+    CGOpts.EmitCodeView = 1;
+    CGOpts.CXXCtorDtorAliases = 1;
 #endif
-    //CI->getCodeGenOpts().setDebugInfo(clang::CodeGenOptions::FullDebugInfo);
-    // CI->getCodeGenOpts().EmitDeclMetadata = 1; // For unloading, for later
-    CI->getCodeGenOpts().CXXCtorDtorAliases = 0; // aliasing the complete
-                                                 // ctor to the base ctor causes
-                                                 // the JIT to crash
-    CI->getCodeGenOpts().VerifyModule = 0; // takes too long
+    // Reduce amount of emitted symbols by optimizing more.
+    CGOpts.OptimizationLevel = 2;
+    // Taken from a -O2 run of clang:
+    CGOpts.DiscardValueNames = 1;
+    CGOpts.OmitLeafFramePointer = 1;
+    CGOpts.UnrollLoops = 1;
+    CGOpts.VectorizeLoop = 1;
+    CGOpts.VectorizeSLP = 1;
+
+    // CGOpts.setDebugInfo(clang::CodeGenOptions::FullDebugInfo);
+    // CGOpts.EmitDeclMetadata = 1; // For unloading, for later
+    // aliasing the complete ctor to the base ctor causes the JIT to crash
+    CGOpts.CXXCtorDtorAliases = 0;
+    CGOpts.VerifyModule = 0; // takes too long
 
     if (!OnlyLex) {
       // -nobuiltininc
@@ -977,17 +1036,20 @@ namespace cling {
 
 CompilerInstance* CIFactory::createCI(llvm::StringRef Code,
                                       const InvocationOptions& Opts,
-                                      const char* LLVMDir) {
-  return createCIImpl(llvm::MemoryBuffer::getMemBuffer(Code),
-                      Opts.CompilerOpts, LLVMDir, false /*OnlyLex*/,
+                                      const char* LLVMDir,
+                                      clang::ASTConsumer* consumer) {
+  return createCIImpl(llvm::MemoryBuffer::getMemBuffer(Code), Opts.CompilerOpts,
+                      LLVMDir, consumer, false /*OnlyLex*/,
                       !Opts.IsInteractive());
 }
 
 CompilerInstance* CIFactory::createCI(MemBufPtr_t Buffer, int argc,
-                                      const char* const *argv,
-                                      const char* LLVMDir, bool OnlyLex) {
-  return createCIImpl(std::move(Buffer), CompilerOptions(argc, argv),
-                      LLVMDir, OnlyLex);
+                                      const char* const* argv,
+                                      const char* LLVMDir,
+                                      clang::ASTConsumer* consumer,
+                                      bool OnlyLex) {
+  return createCIImpl(std::move(Buffer), CompilerOptions(argc, argv), LLVMDir,
+                      consumer, OnlyLex);
 }
 
 } // namespace cling

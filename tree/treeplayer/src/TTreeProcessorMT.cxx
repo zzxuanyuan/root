@@ -9,15 +9,16 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-/** \class TTreeProcessorMT
+/** \class ROOT::TTreeProcessorMT
+    \ingroup Parallelism
     \brief A class to process the entries of a TTree in parallel.
- 
-By means of its Process method, TTreeProcessorMT provides a way to process the
+
+By means of its Process method, ROOT::TTreeProcessorMT provides a way to process the
 entries of a TTree in parallel. When invoking TTreeProcessor::Process, the user
 passes a function whose only parameter is a TTreeReader. The function iterates
 on a subrange of entries by using that TTreeReader.
 
-The implementation of TTreeProcessorMT parallelizes the processing of the subranges,
+The implementation of ROOT::TTreeProcessorMT parallelizes the processing of the subranges,
 each corresponding to a cluster in the TTree. This is possible thanks to the use
 of a ROOT::TThreadedObject, so that each thread works with its own TFile and TTree
 objects.
@@ -25,9 +26,7 @@ objects.
 
 #include "TROOT.h"
 #include "ROOT/TTreeProcessorMT.hxx"
-
-#include "tbb/task.h"
-#include "tbb/task_group.h"
+#include "ROOT/TThreadExecutor.hxx"
 
 using namespace ROOT;
 
@@ -45,15 +44,42 @@ TTreeProcessorMT::TTreeProcessorMT(std::string_view filename, std::string_view t
 /// \param[in] treename Name of the tree to process. If not provided,
 ///                     the implementation will automatically search for a
 ///                     tree in the collection of files.
-TTreeProcessorMT::TTreeProcessorMT(const std::vector<std::string_view>& filenames, std::string_view treename) : treeView(filenames, treename) {}
+TTreeProcessorMT::TTreeProcessorMT(const std::vector<std::string_view> &filenames, std::string_view treename) : treeView(filenames, treename) {}
 
 ////////////////////////////////////////////////////////////////////////
-/// Constructor based on a TChain.
-/// \param[in] chain Chain of files containing the tree to process.
-/// \param[in] treename Name of the tree to process. If not provided,
-///                     the implementation will automatically search for a
-///                     tree in the chain of files.
-TTreeProcessorMT::TTreeProcessorMT(TChain& chain, std::string_view treename) : treeView(chain, treename) {}
+/// Constructor based on a TTree.
+/// \param[in] tree Tree or chain of files containing the tree to process.
+TTreeProcessorMT::TTreeProcessorMT(TTree &tree) : treeView(tree) {}
+
+////////////////////////////////////////////////////////////////////////
+/// Constructor based on a TTree and a TEntryList.
+/// \param[in] tree Tree or chain of files containing the tree to process.
+/// \param[in] entries List of entry numbers to process.
+TTreeProcessorMT::TTreeProcessorMT(TTree &tree, TEntryList &entries) : treeView(tree, entries) {}
+
+////////////////////////////////////////////////////////////////////////
+/// Divide input data in clusters, i.e. the workloads to distribute to tasks
+std::vector<ROOT::Internal::TreeViewCluster> TTreeProcessorMT::MakeClusters()
+{
+   std::vector<ROOT::Internal::TreeViewCluster> clusters;
+   const auto &fileNames = treeView->GetFileNames();
+   const auto nFileNames = fileNames.size();
+   const auto &treeName = treeView->GetTreeName();
+   for (auto i = 0u; i < nFileNames; ++i) { // TTreeViewCluster requires the index of the file the cluster belongs to
+      std::unique_ptr<TFile> f(TFile::Open(fileNames[i].c_str())); // need TFile::Open to load plugins if need be
+      TTree *t = nullptr;                                          // not a leak, t will be deleted by f
+      f->GetObject(treeName.c_str(), t);
+      auto clusterIter = t->GetClusterIterator(0);
+      Long64_t start = 0, end = 0;
+      const Long64_t entries = t->GetEntries();
+      // Iterate over the clusters in the current file and generate a task for each of them
+      while ((start = clusterIter()) < entries) {
+         end = clusterIter.GetNextEntry();
+         clusters.emplace_back(ROOT::Internal::TreeViewCluster{start, end, i});
+      }
+   }
+   return clusters;
+}
 
 //////////////////////////////////////////////////////////////////////////////
 /// Process the entries of a TTree in parallel. The user-provided function
@@ -70,34 +96,25 @@ TTreeProcessorMT::TTreeProcessorMT(TChain& chain, std::string_view treename) : t
 /// The user needs to be aware that each of the subranges can potentially
 /// be processed in parallel. This means that the code of the user function
 /// should be thread safe.
-/// 
+///
 /// \param[in] func User-defined function that processes a subrange of entries
-void TTreeProcessorMT::Process(std::function<void(TTreeReader&)> func)
+void TTreeProcessorMT::Process(std::function<void(TTreeReader &)> func)
 {
    // Enable this IMT use case (activate its locks)
    Internal::TParTreeProcessingRAII ptpRAII;
 
-   // Create task group - assume number of threads has been initialized via ROOT::EnableImplicitMT
-   tbb::task_group g;
+   auto clusters = MakeClusters();
 
-   // Iterate over the collection of files
-   for (size_t i = 0; i < treeView->GetNumFiles(); ++i) {
-      treeView->SetCurrent(i);
-      auto clusterIter = treeView->GetClusterIterator();
-      Long64_t start = 0, end = 0;
+   auto mapFunction = [this, &func](const ROOT::Internal::TreeViewCluster &c) {
+      // get the idx to the TreeViewInput for this task in the current thread
+      const auto dataIdx = treeView->FindOrOpenFile(c.filenameIdx);
+      auto readerAndEntryList = treeView->GetTreeReader(dataIdx, c.startEntry, c.endEntry);
+      auto &reader = std::get<0>(readerAndEntryList);
+      func(*reader);
+      treeView->Cleanup(dataIdx);
+   };
 
-      // Iterate over the clusters in the current file and generate a task for each of them
-      while ((start = clusterIter()) < treeView->GetEntries()) {
-         end = clusterIter.GetNextEntry();
-
-         g.run([this, &func, start, end, i]() {
-            treeView->SetCurrent(i);
-            auto tr = treeView->GetTreeReader();
-            tr->SetEntriesRange(start, end);
-            func(*tr);
-         });
-      }
-   }
-
-   g.wait();
+   // Assume number of threads has been initialized via ROOT::EnableImplicitMT
+   TThreadExecutor pool;
+   pool.Foreach(mapFunction, clusters);
 }

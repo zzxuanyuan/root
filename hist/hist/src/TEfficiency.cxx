@@ -39,7 +39,7 @@ const Double_t kDefConfLevel = 0.682689492137; // 1 sigma
 const TEfficiency::EStatOption kDefStatOpt = TEfficiency::kFCP;
 const Double_t kDefWeight = 1;
 
-ClassImp(TEfficiency)
+ClassImp(TEfficiency);
 
 ////////////////////////////////////////////////////////////////////////////////
 /** \class TEfficiency
@@ -2333,7 +2333,7 @@ Int_t TEfficiency::FindFixBin(Double_t x,Double_t y,Double_t z) const
 ///   all functions in the list are deleted
 /// - for more fitting options see TBinomialEfficiencyFitter::Fit
 
-Int_t TEfficiency::Fit(TF1* f1,Option_t* opt)
+TFitResultPtr TEfficiency::Fit(TF1* f1,Option_t* opt)
 {
    TString option = opt;
    option.ToLower();
@@ -2347,7 +2347,7 @@ Int_t TEfficiency::Fit(TF1* f1,Option_t* opt)
 
    TBinomialEfficiencyFitter Fitter(fPassedHistogram,fTotalHistogram);
 
-   Int_t result = Fitter.Fit(f1,option.Data());
+   TFitResultPtr result = Fitter.Fit(f1,option.Data());
 
    //create copy which is appended to the list
    TF1* pFunc = new TF1(*f1);

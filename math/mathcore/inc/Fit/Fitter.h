@@ -22,20 +22,13 @@ Classes used for fitting (regression analysis) and estimation of parameter value
 
 */
 
-// #ifndef ROOT_Fit_DataVectorfwd
-// #include "Fit/DataVectorfwd.h"
-// #endif
 #include "Fit/BinData.h"
 #include "Fit/UnBinData.h"
-
 #include "Fit/FitConfig.h"
-
+#include "Fit/FitExecutionPolicy.h"
 #include "Fit/FitResult.h"
-
-#include "Math/IParamFunctionfwd.h"
-
+#include "Math/IParamFunction.h"
 #include <memory>
-
 
 namespace ROOT {
 
@@ -85,10 +78,17 @@ class Fitter {
 
 public:
 
-   typedef ROOT::Math::IParamMultiFunction       IModelFunction;
-   typedef ROOT::Math::IParamMultiGradFunction   IGradModelFunction;
-   typedef ROOT::Math::IParamFunction            IModel1DFunction;
-   typedef ROOT::Math::IParamGradFunction        IGradModel1DFunction;
+   typedef ROOT::Math::IParamMultiFunction                 IModelFunction;
+   template <class T>
+   using IModelFunctionTempl =                             ROOT::Math::IParamMultiFunctionTempl<T>;
+#ifdef R__HAS_VECCORE
+   typedef ROOT::Math::IParametricFunctionMultiDimTempl<ROOT::Double_v>  IModelFunction_v;
+#else
+   typedef ROOT::Math::IParamMultiFunction                 IModelFunction_v;
+#endif
+   typedef ROOT::Math::IParamMultiGradFunction             IGradModelFunction;
+   typedef ROOT::Math::IParamFunction                      IModel1DFunction;
+   typedef ROOT::Math::IParamGradFunction                  IGradModel1DFunction;
 
    typedef ROOT::Math::IMultiGenFunction BaseFunc;
    typedef ROOT::Math::IMultiGradFunction BaseGradFunc;
@@ -132,22 +132,22 @@ public:
        Pre-requisite on the function:
        it must implement the 1D or multidimensional parametric function interface
    */
-   template < class Data , class Function>
-   bool Fit( const Data & data, const Function & func ) {
+   template < class Data , class Function, class cond = typename std::enable_if<!(std::is_same<Function, int>::value), Function>::type>
+   bool Fit( const Data & data, const Function & func, const ROOT::Fit::ExecutionPolicy &executionPolicy = ROOT::Fit::ExecutionPolicy::kSerial) {
       SetFunction(func);
-      return Fit(data);
+      return Fit(data, executionPolicy);
    }
 
    /**
        Fit a binned data set using a least square fit (default method)
    */
-   bool Fit(const BinData & data) {
+   bool Fit(const BinData & data, const ROOT::Fit::ExecutionPolicy &executionPolicy = ROOT::Fit::ExecutionPolicy::kSerial) {
       SetData(data);
-      return DoLeastSquareFit();
+      return DoLeastSquareFit(executionPolicy);
    }
-   bool Fit(const std::shared_ptr<BinData> & data) {
+   bool Fit(const std::shared_ptr<BinData> & data, const ROOT::Fit::ExecutionPolicy &executionPolicy = ROOT::Fit::ExecutionPolicy::kSerial) {
       SetData(data);
-      return DoLeastSquareFit();
+      return DoLeastSquareFit(executionPolicy);
    }
 
    /**
@@ -160,32 +160,35 @@ public:
    /**
        fit an unbinned data set using loglikelihood method
    */
-   bool Fit(const UnBinData & data, bool extended = false) {
+   bool Fit(const UnBinData & data, bool extended = false, const ROOT::Fit::ExecutionPolicy &executionPolicy = ROOT::Fit::ExecutionPolicy::kSerial) {
       SetData(data);
-      return DoUnbinnedLikelihoodFit(extended);
+      return DoUnbinnedLikelihoodFit(extended, executionPolicy);
    }
 
    /**
       Binned Likelihood fit. Default is extended
     */
-   bool LikelihoodFit(const BinData & data, bool extended = true) {
+   bool LikelihoodFit(const BinData &data, bool extended = true,
+                      const ROOT::Fit::ExecutionPolicy &executionPolicy = ROOT::Fit::ExecutionPolicy::kSerial) {
       SetData(data);
-      return DoBinnedLikelihoodFit(extended);
+      return DoBinnedLikelihoodFit(extended, executionPolicy);
    }
-   bool LikelihoodFit(const std::shared_ptr<BinData> & data, bool extended = true) {
+
+   bool LikelihoodFit(const std::shared_ptr<BinData> &data, bool extended = true,
+                      const ROOT::Fit::ExecutionPolicy &executionPolicy = ROOT::Fit::ExecutionPolicy::kSerial) {
       SetData(data);
-      return DoBinnedLikelihoodFit(extended);
+      return DoBinnedLikelihoodFit(extended, executionPolicy);
    }
    /**
       Unbinned Likelihood fit. Default is not extended
     */
-   bool LikelihoodFit(const UnBinData & data, bool extended = false) {
+   bool LikelihoodFit(const UnBinData & data, bool extended = false, const ROOT::Fit::ExecutionPolicy &executionPolicy = ROOT::Fit::ExecutionPolicy::kSerial) {
       SetData(data);
-      return DoUnbinnedLikelihoodFit(extended);
+      return DoUnbinnedLikelihoodFit(extended, executionPolicy);
    }
-   bool LikelihoodFit(const std::shared_ptr<UnBinData> & data, bool extended = false) {
+   bool LikelihoodFit(const std::shared_ptr<UnBinData> & data, bool extended = false, const ROOT::Fit::ExecutionPolicy &executionPolicy = ROOT::Fit::ExecutionPolicy::kSerial) {
       SetData(data);
-      return DoUnbinnedLikelihoodFit(extended);
+      return DoUnbinnedLikelihoodFit(extended, executionPolicy);
    }
 
 
@@ -323,6 +326,14 @@ public:
        Set the fitted function (model function) from a parametric function interface
    */
    void  SetFunction(const IModelFunction & func, bool useGradient = false);
+
+   /**
+       Set the fitted function (model function) from a vectorized parametric function interface
+   */
+#ifdef R__HAS_VECCORE
+   template <class NotCompileIfScalarBackend = std::enable_if<!(std::is_same<double, ROOT::Double_v>::value)>>
+   void SetFunction(const IModelFunction_v &func);
+#endif
    /**
       Set the fitted function from a parametric 1D function interface
     */
@@ -420,11 +431,11 @@ protected:
 
 
    /// least square fit
-   bool DoLeastSquareFit();
+   bool DoLeastSquareFit(const ROOT::Fit::ExecutionPolicy &executionPolicy = ROOT::Fit::ExecutionPolicy::kSerial);
    /// binned likelihood fit
-   bool DoBinnedLikelihoodFit( bool extended = true);
+   bool DoBinnedLikelihoodFit(bool extended = true, const ROOT::Fit::ExecutionPolicy &executionPolicy = ROOT::Fit::ExecutionPolicy::kSerial);
    /// un-binned likelihood fit
-   bool DoUnbinnedLikelihoodFit( bool extended = false);
+   bool DoUnbinnedLikelihoodFit( bool extended = false, const ROOT::Fit::ExecutionPolicy &executionPolicy = ROOT::Fit::ExecutionPolicy::kSerial);
    /// linear least square fit
    bool DoLinearFit();
 
@@ -444,31 +455,32 @@ protected:
    void SetData(const FitData & data) {
       fData = std::shared_ptr<FitData>(const_cast<FitData*>(&data),DummyDeleter<FitData>());
    }
-   // set data and function without cloning them 
-   void SetFunctionAndData(const IModelFunction & func, const FitData & data) {
+   // set data and function without cloning them
+   template <class T>
+   void SetFunctionAndData(const IModelFunctionTempl<T> & func, const FitData & data) {
       SetData(data);
-      fFunc = std::shared_ptr<IModelFunction>(const_cast<IModelFunction*>(&func),DummyDeleter<IModelFunction>());
+      fFunc = std::shared_ptr<IModelFunctionTempl<T>>(const_cast<IModelFunctionTempl<T>*>(&func),DummyDeleter<IModelFunctionTempl<T>>());
    }
 
    //set data for the fit using a shared ptr
-   template <class Data> 
-   void SetData(const std::shared_ptr<Data> & data) { 
+   template <class Data>
+   void SetData(const std::shared_ptr<Data> & data) {
       fData = std::static_pointer_cast<Data>(data);
    }
 
    /// look at the user provided FCN and get data and model function is
-   /// they derive from ROOT::Fit FCN classes 
-   void ExamineFCN(); 
+   /// they derive from ROOT::Fit FCN classes
+   void ExamineFCN();
 
-   
+
    /// internal functions to get data set and model function from FCN
-   /// useful for fits done with customized FCN classes 
+   /// useful for fits done with customized FCN classes
    template <class ObjFuncType>
-   bool GetDataFromFCN();  
+   bool GetDataFromFCN();
 
 
 private:
-   
+
    bool fUseGradient;       // flag to indicate if using gradient or not
 
    bool fBinFit;            // flag to indicate if fit is binned
@@ -481,7 +493,9 @@ private:
 
    FitConfig fConfig;       // fitter configuration (options and parameter settings)
 
-   std::shared_ptr<IModelFunction> fFunc;  //! copy of the fitted  function containing on output the fit result 
+   std::shared_ptr<IModelFunction_v> fFunc_v;  //! copy of the fitted  function containing on output the fit result
+
+   std::shared_ptr<IModelFunction> fFunc;  //! copy of the fitted  function containing on output the fit result
 
    std::shared_ptr<ROOT::Fit::FitResult>  fResult;  //! pointer to the object containing the result of the fit
 
@@ -495,21 +509,36 @@ private:
 
 
 // internal functions to get data set and model function from FCN
-// useful for fits done with customized FCN classes 
+// useful for fits done with customized FCN classes
 template <class ObjFuncType>
 bool Fitter::GetDataFromFCN()  {
    ObjFuncType * objfunc = dynamic_cast<ObjFuncType*>(fObjFunction.get() );
    if (objfunc) {
       fFunc = objfunc->ModelFunctionPtr();
       fData = objfunc->DataPtr();
-      return true; 
+      return true;
    }
    else {
-      return false; 
+      return false;
    }
 }
 
-      
+#ifdef R__HAS_VECCORE
+template <class NotCompileIfScalarBackend>
+void Fitter::SetFunction(const IModelFunction_v &func)
+{
+   //  set the fit model function (clone the given one and keep a copy )
+   // std::cout << "set a non-grad function" << std::endl;
+   fUseGradient = false;
+   fFunc_v = std::shared_ptr<IModelFunction_v>(dynamic_cast<IModelFunction_v *>(func.Clone()));
+   assert(fFunc_v);
+
+   // creates the parameter  settings
+   fConfig.CreateParamsSettings(*fFunc_v);
+   fFunc.reset();
+}
+#endif
+
    } // end namespace Fit
 
 } // end namespace ROOT
@@ -518,7 +547,6 @@ bool Fitter::GetDataFromFCN()  {
 
 
 #ifndef __CINT__
-
 
 #include "Math/WrappedFunction.h"
 

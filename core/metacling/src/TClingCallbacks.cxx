@@ -61,6 +61,8 @@ extern "C" {
    void TCling__LibraryUnloadedRTTI(const void* dyLibHandle,
                                     llvm::StringRef canonicalName);
    void TCling__PrintStackTrace();
+   void TCling__RestoreInterpreterMutex(void *state);
+   void *TCling__ResetInterpreterMutex();
 }
 
 TClingCallbacks::TClingCallbacks(cling::Interpreter* interp)
@@ -552,15 +554,26 @@ bool TClingCallbacks::tryResolveAtRuntimeInternal(LookupResult &R, Scope *S) {
    assert(TU && "Must not be null.");
 
    // DynamicLookup only happens inside wrapper functions:
-   clang::DeclContext* WrapperDC = S->getEntity();
    clang::FunctionDecl* Wrapper = nullptr;
-   while (true) {
-      if (!WrapperDC || WrapperDC == TU)
+   Scope* Cursor = S;
+   do {
+      DeclContext* DCCursor = Cursor->getEntity();
+      if (DCCursor == TU)
          return false;
-      Wrapper = dyn_cast<FunctionDecl>(WrapperDC);
-      if (Wrapper && utils::Analyze::IsWrapper(Wrapper))
-          break;
-      WrapperDC = WrapperDC->getParent();
+      Wrapper = dyn_cast_or_null<FunctionDecl>(DCCursor);
+      if (Wrapper) {
+         if (utils::Analyze::IsWrapper(Wrapper)) {
+            break;
+         } else {
+            // Can't have a function inside the wrapper:
+            return false;
+         }
+      }
+   } while ((Cursor = Cursor->getParent()));
+
+   if (!Wrapper) {
+      // The parent of S wasn't the TU?!
+      return false;
    }
 
    VarDecl* Result = VarDecl::Create(C, TU, Loc, Loc, II, C.DependentTy,
@@ -771,4 +784,17 @@ void TClingCallbacks::LibraryUnloaded(const void* dyLibHandle,
 
 void TClingCallbacks::PrintStackTrace() {
    TCling__PrintStackTrace();
+}
+
+void *TClingCallbacks::EnteringUserCode()
+{
+   // We can safely assume that if the lock exist already when we are in Cling code,
+   // then the lock has (or should been taken) already. Any action (that caused callers
+   // to take the lock) is halted during ProcessLine. So it is fair to unlock it.
+   return TCling__ResetInterpreterMutex();
+}
+
+void TClingCallbacks::ReturnedFromUserCode(void *stateInfo)
+{
+   TCling__RestoreInterpreterMutex(stateInfo);
 }

@@ -16,8 +16,8 @@
 This class provides file copy and merging services.
 
 It can be used to copy files (not only ROOT files), using TFile or
-any of its remote file access plugins. It is therefore usefull in
-a Grid environment where the files might be accessable via Castor,
+any of its remote file access plugins. It is therefore useful in
+a Grid environment where the files might be accessible via Castor,
 rfio, dcap, etc.
 The merging interface allows files containing histograms and trees
 to be merged, like the standalone hadd program.
@@ -39,6 +39,7 @@ to be merged, like the standalone hadd program.
 #include "TClassRef.h"
 #include "TROOT.h"
 #include "TMemFile.h"
+#include "TVirtualMutex.h"
 
 #ifdef WIN32
 // For _getmaxstdio
@@ -49,7 +50,7 @@ to be merged, like the standalone hadd program.
 #include <sys/resource.h>
 #endif
 
-ClassImp(TFileMerger)
+ClassImp(TFileMerger);
 
 TClassRef R__TH1_Class("TH1");
 TClassRef R__TTree_Class("TTree");
@@ -99,6 +100,7 @@ TFileMerger::TFileMerger(Bool_t isLocal, Bool_t histoOneGo)
    fExcessFiles = new TList;
    fExcessFiles->SetOwner(kTRUE);
 
+   R__LOCKGUARD(gROOTMutex);
    gROOT->GetListOfCleanups()->Add(this);
 }
 
@@ -107,7 +109,10 @@ TFileMerger::TFileMerger(Bool_t isLocal, Bool_t histoOneGo)
 
 TFileMerger::~TFileMerger()
 {
-   gROOT->GetListOfCleanups()->Remove(this);
+   {
+      R__LOCKGUARD(gROOTMutex);
+      gROOT->GetListOfCleanups()->Remove(this);
+   }
    SafeDelete(fFileList);
    SafeDelete(fMergeList);
    SafeDelete(fOutputFile);
@@ -219,7 +224,7 @@ Bool_t TFileMerger::AddAdoptFile(TFile *source, Bool_t cpProgress)
 
 Bool_t TFileMerger::AddFile(TFile *source, Bool_t own, Bool_t cpProgress)
 {
-   if (source == 0) {
+   if (source == 0 || source->IsZombie()) {
       return kFALSE;
    }
 
@@ -240,14 +245,13 @@ Bool_t TFileMerger::AddFile(TFile *source, Bool_t own, Bool_t cpProgress)
          return kFALSE;
       }
       newfile = TFile::Open(localcopy, "READ");
+      // Zombie files should also be skipped
+      if (newfile && newfile->IsZombie()) {
+         delete newfile;
+         newfile = 0;
+      }
    } else {
       newfile = source;
-   }
-
-   // Zombie files should also be skipped 
-   if (newfile && newfile->IsZombie()) {
-      delete newfile;
-      newfile = 0;
    }
 
    if (!newfile) {
@@ -417,7 +421,7 @@ Bool_t TFileMerger::MergeRecursive(TDirectory *target, TList *sourcelist, Int_t 
          while ( (key = (TKey*)nextkey())) {
 
             // Keep only the highest cycle number for each key for mergeable objects. They are stored
-            // in the (hash) list onsecutively and in decreasing order of cycles, so we can continue
+            // in the (hash) list consecutively and in decreasing order of cycles, so we can continue
             // until the name changes. We flag the case here and we act consequently later.
             Bool_t alreadyseen = (oldkeyname == key->GetName()) ? kTRUE : kFALSE;
 
@@ -819,7 +823,7 @@ Bool_t TFileMerger::PartialMerge(Int_t in_type)
       if (file->TestBit(kCanDelete)) file->Close();
 
       // Remove the temporary file
-      if (fLocal) {
+      if (fLocal && !file->InheritsFrom(TMemFile::Class())) {
          TUrl u(file->GetPath(), kTRUE);
          if (gSystem->Unlink(u.GetFile()) != 0)
             Warning("PartialMerge", "problems removing temporary local file '%s'", u.GetFile());
@@ -844,7 +848,7 @@ Bool_t TFileMerger::PartialMerge(Int_t in_type)
          // close the files
          if (file->TestBit(kCanDelete)) file->Close();
          // remove the temporary files
-         if(fLocal) {
+         if(fLocal && !file->InheritsFrom(TMemFile::Class())) {
             TString p(file->GetPath());
             // coverity[unchecked_value] Index is return a value with range or NPos to select the whole name.
             p = p(0, p.Index(':',0));
@@ -941,7 +945,7 @@ void TFileMerger::RecursiveRemove(TObject *obj)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Set a limit to the number file that TFileMerger will opened at one time.
+/// Set a limit to the number of files that TFileMerger will open simultaneously.
 ///
 /// If the request is higher than the system limit, we reset it to the system limit.
 /// If the request is less than two, we reset it to 2 (one for the output file and one for the input file).

@@ -30,7 +30,7 @@
 #include <queue>
 
 #ifdef R__USE_IMT
-#include "tbb/task.h"
+#include "tbb/task_group.h"
 #include <atomic>
 #endif
 
@@ -53,9 +53,7 @@ public:
 
 protected:
 
-   friend class MappingTask;
-   friend class UnzipTask;
-   tbb::task *root;
+   tbb::task_group *root;
 
    // Members for paral. managing
    Bool_t      fParallel;              ///< Indicate if we want to activate the parallelism (for this instance)

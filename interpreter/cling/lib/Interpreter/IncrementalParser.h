@@ -23,6 +23,7 @@
 namespace llvm {
   struct GenericValue;
   class MemoryBuffer;
+  class Module;
 }
 
 namespace clang {
@@ -229,12 +230,13 @@ namespace cling {
     ///
     EParseResult ParseInternal(llvm::StringRef input);
 
-    ///\brief Return true if this decl (which comes from an AST file) should
-    /// not be sent to CodeGen. The module is assumed to describe the contents
-    /// of a library; symbols inside the library must thus not be reemitted /
-    /// duplicated by CodeGen.
+    ///\brief Create a unique name for the next llvm::Module
     ///
-    bool shouldIgnore(const clang::Decl* D) const;
+    std::string makeModuleName();
+
+    ///\brief Create a new llvm::Module
+    ///
+    llvm::Module* StartModule();
 
   };
 } // end namespace cling

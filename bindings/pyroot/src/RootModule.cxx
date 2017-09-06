@@ -105,6 +105,11 @@ static PyNumberMethods nullptr_as_number = {
 #if PY_VERSION_HEX >= 0x02050000
    , 0                                // nb_index
 #endif
+#if PY_VERSION_HEX >= 0x03050000
+   , 0                                // nb_matrix_multiply
+   , 0                                // nb_inplace_matrix_multiply
+#endif
+
    };
 
 static PyTypeObject PyNullPtr_t_Type = {
@@ -461,11 +466,11 @@ namespace {
    // Return object proxy address as an indexable buffer.
       void* addr = GetObjectProxyAddress( dummy, args );
       if ( addr )
-         return BufFac_t::Instance()->PyBuffer_FromMemory( (Long_t*)addr, 1 );
+         return BufFac_t::Instance()->PyBuffer_FromMemory( (Long_t*)addr, sizeof(Long_t) );
       if ( ! addr && PyTuple_Size( args ) ) {
          Utility::GetBuffer( PyTuple_GetItem( args, 0 ), '*', 1, addr, kFALSE );
          if ( addr )
-            return BufFac_t::Instance()->PyBuffer_FromMemory( (Long_t*)&addr, 1 );
+            return BufFac_t::Instance()->PyBuffer_FromMemory( (Long_t*)&addr, sizeof(Long_t) );
       }
       return 0;//_addressof_common( dummy );
    }
@@ -898,6 +903,12 @@ extern "C" void initlibPyROOT()
       PYROOT_INIT_ERROR;
 
    if ( ! Utility::InitProxy( gRootModule, &TCustomInt_Type, "Long" ) )
+      PYROOT_INIT_ERROR;
+
+   if ( ! Utility::InitProxy( gRootModule, &TCustomFloat_Type, "double" ) )
+      PYROOT_INIT_ERROR;
+
+   if ( ! Utility::InitProxy( gRootModule, &TCustomInt_Type, "long" ) )
       PYROOT_INIT_ERROR;
 
    if ( ! Utility::InitProxy( gRootModule, &TCustomInstanceMethod_Type, "InstanceMethod" ) )

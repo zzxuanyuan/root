@@ -3,8 +3,6 @@
 ############################################################################
 include_directories(${PYTHON_INCLUDE_DIRS})
 
-ROOT_GENERATE_DICTIONARY(G__PyROOT *.h MODULE PyROOT LINKDEF LinkDef.h OPTIONS "-writeEmptyRootPCM")
-
 ROOT_ADD_CXX_FLAG(CMAKE_CXX_FLAGS -fno-strict-aliasing)
 ROOT_ADD_CXX_FLAG(CMAKE_CXX_FLAGS -Wno-parentheses-equality)
 
@@ -15,8 +13,12 @@ if(WIN32)
                 -include:_G__cpp_setupG__Thread
                 -include:_G__cpp_setupG__MathCore)
 endif()
-ROOT_LINKER_LIBRARY(PyROOT *.cxx G__PyROOT.cxx LIBRARIES Core Net Tree MathCore Rint ${PYTHON_LIBRARIES})
-ROOT_LINKER_LIBRARY(JupyROOT ../JupyROOT/src/*.cxx LIBRARIES Core)
+ROOT_STANDARD_LIBRARY_PACKAGE(PyROOT
+                              NO_INSTALL_HEADERS
+                              DICTIONARY_OPTIONS "-writeEmptyRootPCM"
+                              LIBRARIES Core Net Tree MathCore Rint ${PYTHON_LIBRARIES}
+                              DEPENDENCIES Core MathCore Net Tree Rint)
+ROOT_LINKER_LIBRARY(JupyROOT ../JupyROOT/src/*.cxx DEPENDENCIES Core)
 
 
 if(MSVC)
@@ -36,8 +38,13 @@ endif()
 file(GLOB pyfiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.py)
 foreach(pyfile ${pyfiles})
   install(FILES ${pyfile} DESTINATION ${runtimedir})
-  install(CODE "execute_process(COMMAND python -m py_compile \$ENV{DESTDIR}${runtimedir}/${pyfile})")
-  install(CODE "execute_process(COMMAND python -O -m py_compile \$ENV{DESTDIR}${runtimedir}/${pyfile})")
+  if(IS_ABSOLUTE ${runtimedir})
+    set(absruntimedir ${runtimedir})
+  else()
+    set(absruntimedir \${CMAKE_INSTALL_PREFIX}/${runtimedir})
+  endif()
+  install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m py_compile \$ENV{DESTDIR}${absruntimedir}/${pyfile})")
+  install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -O -m py_compile \$ENV{DESTDIR}${absruntimedir}/${pyfile})")
   file(COPY ${pyfile} DESTINATION ${localruntimedir})
 endforeach()
 

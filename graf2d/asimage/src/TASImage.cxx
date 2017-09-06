@@ -94,7 +94,6 @@ ROOT tutorials: `$ROOTSYS/tutorials/image/`
 #else
 #   include "Windows4root.h"
 #endif
-extern "C" {
 #ifndef WIN32
 #ifdef R__HAS_COCOA
 #   define X_DISPLAY_MISSING 1
@@ -107,6 +106,7 @@ extern "C" {
 #endif
 #   include <afterimage.h>
 #   include <bmp.h>
+extern "C" {
 #   include <draw.h>
 }
 
@@ -166,8 +166,8 @@ typedef struct {
 }\
 
 
-ClassImp(TASImage)
-ClassImp(TASImagePlugin)
+ClassImp(TASImage);
+ClassImp(TASImagePlugin);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Destroy image.

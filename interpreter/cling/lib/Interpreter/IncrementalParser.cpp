@@ -39,6 +39,7 @@
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Parse/Parser.h"
 #include "clang/Sema/Sema.h"
 #include "clang/Sema/SemaDiagnostic.h"
@@ -49,30 +50,15 @@
 #include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/MemoryBuffer.h"
 
-#include <iostream>
-#include <sstream>
 #include <stdio.h>
 
 using namespace clang;
 
 namespace {
 
-  static const Token* getMacroToken(const Preprocessor& PP, const char* Macro) {
-    if (const IdentifierInfo* II = PP.getIdentifierInfo(Macro)) {
-      if (const DefMacroDirective* MD = llvm::dyn_cast_or_null
-          <DefMacroDirective>(PP.getLocalMacroDirective(II))) {
-        if (const clang::MacroInfo* MI = MD->getMacroInfo()) {
-          if (MI->getNumTokens() == 1)
-            return MI->tokens_begin();
-        }
-      }
-    }
-    return nullptr;
-  }
-
   ///\brief Check the compile-time C++ ABI version vs the run-time ABI version,
   /// a mismatch could cause havoc. Reports if ABI versions differ.
-  static bool CheckABICompatibility(clang::CompilerInstance* CI) {
+  static bool CheckABICompatibility(cling::Interpreter& Interp) {
 #if defined(__GLIBCXX__)
     #define CLING_CXXABI_VERS       std::to_string(__GLIBCXX__)
     const char* CLING_CXXABI_NAME = "__GLIBCXX__";
@@ -86,18 +72,9 @@ namespace {
     #error "Unknown platform for ABI check";
 #endif
 
-    llvm::StringRef CurABI;
-    const clang::Preprocessor& PP = CI->getPreprocessor();
-    const clang::Token* Tok = getMacroToken(PP, CLING_CXXABI_NAME);
-    if (Tok && Tok->isLiteral()) {
-      // Tok::getLiteralData can fail even if Tok::isLiteral is true!
-      SmallString<64> Buffer;
-      CurABI = PP.getSpelling(*Tok, Buffer);
-      // Strip any quotation marks.
-      CurABI = CurABI.trim("\"");
-      if (CurABI.equals(CLING_CXXABI_VERS))
-        return true;
-    }
+    const std::string CurABI = Interp.getMacroValue(CLING_CXXABI_NAME);
+    if (CurABI == CLING_CXXABI_VERS)
+      return true;
 
     cling::errs() <<
       "Warning in cling::IncrementalParser::CheckABICompatibility():\n"
@@ -186,10 +163,11 @@ namespace {
 } // unnamed namespace
 
 namespace cling {
-  IncrementalParser::IncrementalParser(Interpreter* interp, const char* llvmdir):
-    m_Interpreter(interp),
-    m_CI(CIFactory::createCI("", interp->getOptions(), llvmdir)),
-    m_Consumer(nullptr), m_ModuleNo(0) {
+  IncrementalParser::IncrementalParser(Interpreter* interp, const char* llvmdir)
+      : m_Interpreter(interp),
+        m_CI(CIFactory::createCI("", interp->getOptions(), llvmdir,
+                                 m_Consumer = new cling::DeclCollector())),
+        m_ModuleNo(0) {
 
     if (!m_CI) {
       cling::errs() << "Compiler instance could not be created.\n";
@@ -199,7 +177,6 @@ namespace cling {
     if (m_Interpreter->getOptions().CompilerOpts.HasOutput)
       return;
 
-    m_Consumer = dyn_cast<DeclCollector>(&m_CI->getSema().getASTConsumer());
     if (!m_Consumer) {
       cling::errs() << "No AST consumer available.\n";
       return;
@@ -208,13 +185,13 @@ namespace cling {
     DiagnosticsEngine& Diag = m_CI->getDiagnostics();
     if (m_CI->getFrontendOpts().ProgramAction != frontend::ParseSyntaxOnly) {
       m_CodeGen.reset(CreateLLVMCodeGen(
-          Diag, "cling-module-0", m_CI->getHeaderSearchOpts(),
+          Diag, makeModuleName(), m_CI->getHeaderSearchOpts(),
           m_CI->getPreprocessorOpts(), m_CI->getCodeGenOpts(),
           *m_Interpreter->getLLVMContext()));
-      m_Consumer->setContext(this, m_CodeGen.get());
-    } else {
-      m_Consumer->setContext(this, 0);
     }
+
+    // Initialize the DeclCollector and add callbacks keeping track of macros.
+    m_Consumer->Setup(this, m_CodeGen.get(), m_CI->getPreprocessor());
 
     m_DiagConsumer.reset(new FilteringDiagConsumer(Diag, false));
 
@@ -228,11 +205,7 @@ namespace cling {
     if (hasCodeGenerator())
       getCodeGenerator()->Initialize(getCI()->getASTContext());
 
-    CompilationOptions CO;
-    CO.DeclarationExtraction = 0;
-    CO.ValuePrinting = CompilationOptions::VPDisabled;
-    CO.CodeGeneration = hasCodeGenerator();
-
+    CompilationOptions CO = m_Interpreter->makeDefaultCompilationOpts();
     Transaction* CurT = beginTransaction(CO);
     Preprocessor& PP = m_CI->getPreprocessor();
     DiagnosticsEngine& Diags = m_CI->getSema().getDiagnostics();
@@ -284,7 +257,7 @@ namespace cling {
       // library implementation.
       ParseInternal("#include <new>");
       // That's really C++ ABI compatibility. C has other problems ;-)
-      CheckABICompatibility(m_CI.get());
+      CheckABICompatibility(*m_Interpreter);
     }
 
     // DO NOT commit the transactions here: static initialization in these
@@ -366,19 +339,18 @@ namespace cling {
 
     T->setState(Transaction::kCompleted);
 
-    DiagnosticsEngine& Diags = getCI()->getSema().getDiagnostics();
+    DiagnosticsEngine& Diag = getCI()->getSema().getDiagnostics();
 
     //TODO: Make the enum orable.
     EParseResult ParseResult = kSuccess;
 
-    assert((Diags.hasFatalErrorOccurred() ? Diags.hasErrorOccurred() : true)
-            && "Diags.hasFatalErrorOccurred without Diags.hasErrorOccurred !");
+    assert((Diag.hasFatalErrorOccurred() ? Diag.hasErrorOccurred() : true)
+            && "Diag.hasFatalErrorOccurred without Diag.hasErrorOccurred !");
 
-    if (Diags.hasErrorOccurred() || T->getIssuedDiags() == Transaction::kErrors)
-    {
+    if (Diag.hasErrorOccurred() || T->getIssuedDiags() == Transaction::kErrors) {
       T->setIssuedDiags(Transaction::kErrors);
       ParseResult = kFailed;
-    } else if (Diags.getNumWarnings() > 0) {
+    } else if (Diag.getNumWarnings() > 0) {
       T->setIssuedDiags(Transaction::kWarnings);
       ParseResult = kSuccessWithWarnings;
     }
@@ -401,6 +373,16 @@ namespace cling {
 
     addTransaction(T);
     return ParseResultTransaction(T, ParseResult);
+  }
+
+  std::string IncrementalParser::makeModuleName() {
+    return std::string("cling-module-") + std::to_string(m_ModuleNo++);
+  }
+
+  llvm::Module* IncrementalParser::StartModule() {
+    return getCodeGenerator()->StartModule(makeModuleName(),
+                                           *m_Interpreter->getLLVMContext(),
+                                           getCI()->getCodeGenOpts());
   }
 
   void IncrementalParser::commitTransaction(ParseResultTransaction& PRT,
@@ -450,14 +432,10 @@ namespace cling {
       PRT.setInt(kFailed);
       m_Interpreter->unload(*T);
 
-      if (MustStartNewModule) {
-        // Create a new module.
-        stdstrstream ModuleName;
-        ModuleName << "cling-module-" << ++m_ModuleNo;
-        getCodeGenerator()->StartModule(ModuleName.str(),
-                                        *m_Interpreter->getLLVMContext(),
-                                        getCI()->getCodeGenOpts());
-      }
+      // Create a new module if necessary.
+      if (MustStartNewModule)
+        StartModule();
+
       return;
     }
 
@@ -488,7 +466,7 @@ namespace cling {
     {
       Transaction* prevConsumerT = m_Consumer->getTransaction();
       m_Consumer->setTransaction(T);
-      Transaction* nestedT = beginTransaction(CompilationOptions());
+      Transaction* nestedT = beginTransaction(T->getCompilationOpts());
       // Pull all template instantiations in that came from the consumers.
       getCI()->getSema().PerformPendingInstantiations();
       ParseResultTransaction nestedPRT = endTransaction(nestedT);
@@ -509,10 +487,12 @@ namespace cling {
       if (!T->getParent()) {
         if (m_Interpreter->executeTransaction(*T)
             >= Interpreter::kExeFirstError) {
-          // Roll back on error in initializers
-          //assert(0 && "Error on inits.");
+          // Roll back on error in initializers.
+          // T maybe pointing to freed memory after this call:
+          // Interpreter::unload
+          //   IncrementalParser::deregisterTransaction
+          //     TransactionPool::releaseTransaction
           m_Interpreter->unload(*T);
-          T->setState(Transaction::kRolledBackWithErrors);
           return;
         }
       }
@@ -551,22 +531,9 @@ namespace cling {
     if (!T->isNestedTransaction() && hasCodeGenerator()) {
       // The initializers are emitted to the symbol "_GLOBAL__sub_I_" + filename.
       // Make that unique!
-      ASTContext& Context = getCI()->getASTContext();
-      SourceManager &SM = Context.getSourceManager();
-      const FileEntry *MainFile = SM.getFileEntryForID(SM.getMainFileID());
-      FileEntry* NcMainFile = const_cast<FileEntry*>(MainFile);
-      // Hack to temporarily set the file entry's name to a unique name.
-      assert(MainFile->getName() == *(const char**)NcMainFile
-         && "FileEntry does not start with the name");
-      const char* &FileName = *(const char**)NcMainFile;
-      const char* OldName = FileName;
-      std::string ModName = getCodeGenerator()->GetModule()->getName().str();
-      FileName = ModName.c_str();
-
       deserT = beginTransaction(CompilationOptions());
       // Reset the module builder to clean up global initializers, c'tors, d'tors
-      getCodeGenerator()->HandleTranslationUnit(Context);
-      FileName = OldName;
+      getCodeGenerator()->HandleTranslationUnit(getCI()->getASTContext());
       auto PRT = endTransaction(deserT);
       commitTransaction(PRT);
       deserT = PRT.getPointer();
@@ -574,7 +541,7 @@ namespace cling {
       std::unique_ptr<llvm::Module> M(getCodeGenerator()->ReleaseModule());
 
       if (M) {
-        m_Interpreter->addModule(M.get());
+        m_Interpreter->addModule(M.get(), T->getCompilationOpts().OptLevel);
         T->setModule(std::move(M));
       }
 
@@ -586,11 +553,7 @@ namespace cling {
       }
 
       // Create a new module.
-      smallstream ModuleName;
-      ModuleName << "cling-module-" << ++m_ModuleNo;
-      getCodeGenerator()->StartModule(ModuleName.str(),
-                                      *m_Interpreter->getLLVMContext(),
-                                      getCI()->getCodeGenOpts());
+      StartModule();
     }
   }
 
@@ -701,7 +664,7 @@ namespace cling {
     assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
     PP.enableIncrementalProcessing();
 
-    std::ostringstream source_name;
+    smallstream source_name;
     source_name << "input_line_" << (m_MemoryBuffers.size() + 1);
 
     // Create an uninitialized memory buffer, copy code in and append "\n"
@@ -712,7 +675,7 @@ namespace cling {
                                                    source_name.str()));
     char* MBStart = const_cast<char*>(MB->getBufferStart());
     memcpy(MBStart, input.data(), InputSize);
-    memcpy(MBStart + InputSize, "\n", 2);
+    MBStart[InputSize] = '\n';
 
     SourceManager& SM = getCI()->getSourceManager();
 
@@ -724,20 +687,14 @@ namespace cling {
 
     // Create FileID for the current buffer.
     FileID FID;
-    if (CO.CodeCompletionOffset == -1)
-    {
-      FID = SM.createFileID(std::move(MB), SrcMgr::C_User,
-                                 /*LoadedID*/0,
-                                 /*LoadedOffset*/0, NewLoc);
-    } else {
-      // Create FileEntry and FileID for the current buffer.
-      // Enabling the completion point only works on FileEntries.
-      const clang::FileEntry* FE
-        = SM.getFileManager().getVirtualFile("vfile for " + source_name.str(),
-                                             InputSize, 0 /* mod time*/);
-      SM.overrideFileContents(FE, std::move(MB));
-      FID = SM.createFileID(FE, NewLoc, SrcMgr::C_User);
-
+    // Create FileEntry and FileID for the current buffer.
+    // Enabling the completion point only works on FileEntries.
+    const clang::FileEntry* FE
+      = SM.getFileManager().getVirtualFile(source_name.str(), InputSize,
+                                           0 /* mod time*/);
+    SM.overrideFileContents(FE, std::move(MB));
+    FID = SM.createFileID(FE, NewLoc, SrcMgr::C_User);
+    if (CO.CodeCompletionOffset != -1) {
       // The completion point is set one a 1-based line/column numbering.
       // It relies on the implementation to account for the wrapper extra line.
       PP.SetCodeCompletionPoint(FE, 1/* start point 1-based line*/,

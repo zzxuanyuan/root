@@ -59,12 +59,13 @@
 #include "TMVA/Types.h"
 #include "TMVA/DataSet.h"
 
-class TFile;
-class TTree;
-class TDirectory;
 class TCanvas;
+class TDirectory;
+class TFile;
 class TGraph;
 class TH1F;
+class TMultiGraph;
+class TTree;
 namespace TMVA {
 
    class IMethod;
@@ -73,6 +74,7 @@ namespace TMVA {
    class DataSetInfo;
    class DataSetManager;
    class DataLoader;
+   class ROCCurve;
    class VariableTransformBase;
    
 
@@ -125,7 +127,8 @@ namespace TMVA {
       void DeleteAllMethods( void );
 
       // accessors
-      IMethod* GetMethod( const TString& datasetname, const TString& title )const;
+      IMethod* GetMethod( const TString& datasetname, const TString& title ) const;
+      Bool_t   HasMethod( const TString& datasetname, const TString& title ) const;
 
       Bool_t Verbose( void ) const { return fVerbose; }
       void SetVerbose( Bool_t v=kTRUE );
@@ -146,18 +149,23 @@ namespace TMVA {
 
       Bool_t IsSilentFile();
       Bool_t IsModelPersistence();
-      
-      Double_t GetROCIntegral(DataLoader *loader,TString theMethodName);
-      Double_t GetROCIntegral(TString  datasetname,TString theMethodName);
 
-      //methods to get TGraph for a indicate method in dataset
-      //optional tiitle and axis added with fLegend=kTRUE
-      TGraph* GetROCCurve(DataLoader *loader,TString theMethodName,Bool_t fLegend=kTRUE);
-      TGraph* GetROCCurve(TString  datasetname,TString theMethodName,Bool_t fLegend=kTRUE);
+      Double_t GetROCIntegral(DataLoader *loader, TString theMethodName, UInt_t iClass = 0);
+      Double_t GetROCIntegral(TString datasetname, TString theMethodName, UInt_t iClass = 0);
+
+      // Methods to get a TGraph for an indicated method in dataset.
+      // Optional title and axis added with fLegend=kTRUE.
+      // Argument iClass used in multiclass settings, otherwise ignored.
+      TGraph* GetROCCurve(DataLoader *loader, TString theMethodName, Bool_t setTitles=kTRUE, UInt_t iClass=0);
+      TGraph* GetROCCurve(TString datasetname, TString theMethodName, Bool_t setTitles=kTRUE, UInt_t iClass=0);
+
+      // Methods to get a TMultiGraph for a given class and all methods in dataset.
+      TMultiGraph* GetROCCurveAsMultiGraph(DataLoader *loader, UInt_t iClass);
+      TMultiGraph* GetROCCurveAsMultiGraph(TString datasetname, UInt_t iClass);
       
-      // Draw all ROC curves for all methods in the dataset.
-      TCanvas* GetROCCurve(DataLoader *loader);
-      TCanvas* GetROCCurve(TString datasetname);
+      // Draw all ROC curves of a given class for all methods in the dataset.
+      TCanvas* GetROCCurve(DataLoader *loader, UInt_t iClass=0);
+      TCanvas* GetROCCurve(TString datasetname, UInt_t iClass=0);
 
    private:
 
@@ -172,7 +180,13 @@ namespace TMVA {
       TH1F* EvaluateImportanceRandom( DataLoader *loader,UInt_t nseeds, Types::EMVA theMethod,  TString methodTitle, const char *theOption = "" );
       
       TH1F* GetImportance(const int nbits,std::vector<Double_t> importances,std::vector<TString> varNames);
-      
+
+      // Helpers for public facing ROC methods
+      ROCCurve *GetROC(DataLoader *loader, TString theMethodName, UInt_t iClass = 0,
+                       Types::ETreeType type = Types::kTesting);
+      ROCCurve *GetROC(TString datasetname, TString theMethodName, UInt_t iClass = 0,
+                       Types::ETreeType type = Types::kTesting);
+
       void WriteDataInformation(DataSetInfo&     fDataSetInfo);
 
       void SetInputTreesFromEventAssignTrees();

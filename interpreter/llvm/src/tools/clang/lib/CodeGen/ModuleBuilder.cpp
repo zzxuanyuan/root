@@ -92,6 +92,10 @@ namespace clang {
       return M.get();
     }
 
+    CGDebugInfo *getCGDebugInfo() {
+      return Builder->getModuleDebugInfo();
+    }
+
     llvm::Module *ReleaseModule() {
       // Remove pending etc decls in case of error; the asserts in StartModule()
       // will rightfully be confused otherwise, as none of the decls were
@@ -117,10 +121,10 @@ namespace clang {
     }
 
     llvm::Constant *GetAddrOfGlobal(GlobalDecl global, bool isForDefinition) {
-      return Builder->GetAddrOfGlobal(global, isForDefinition);
+      return Builder->GetAddrOfGlobal(global, ForDefinition_t(isForDefinition));
     }
 
-    llvm::Module *StartModule(const std::string& ModuleName,
+    llvm::Module *StartModule(llvm::StringRef ModuleName,
                               llvm::LLVMContext& C,
                               const CodeGenOptions& CGO) {
       assert(!M && "Replacing existing Module?");
@@ -137,6 +141,9 @@ namespace clang {
              && "Newly created module should not have deferred decls");
       Builder->DeferredDecls.swap(OldBuilder->DeferredDecls);
 
+      assert(OldBuilder->EmittedDeferredDecls.empty()
+             && "Still have (unmerged) EmittedDeferredDecls deferred decls");
+
       assert(Builder->DeferredVTables.empty()
              && "Newly created module should not have deferred vtables");
       Builder->DeferredVTables.swap(OldBuilder->DeferredVTables);
@@ -150,8 +157,6 @@ namespace clang {
       assert(Builder->WeakRefReferences.empty()
              && "Newly created module should not have weakRefRefs");
       Builder->WeakRefReferences.swap(OldBuilder->WeakRefReferences);
-
-      Builder->EmittedDeferredDecls.swap(OldBuilder->EmittedDeferredDecls);
 
       return M.get();
     }
@@ -278,57 +283,10 @@ namespace clang {
           break;
         }
       }
-
-      for (auto I = Builder->DeferredDeclsToEmit.begin(),
-             E = Builder->DeferredDeclsToEmit.end(); I != E; ++I) {
-         if (I->GV == GV) {
-          Builder->DeferredDeclsToEmit.erase(I);
-          break;
-        }
-      }
-
-      if (GV->isWeakForLinker()) {
-        if (!GV->isDeclaration()) {
-          // This is a definition. If if was emitted as deferred, move it
-          // back into deferred state.
-          auto IEmittedDeferredDecl
-            = Builder->EmittedDeferredDecls.find(GV);
-          if (IEmittedDeferredDecl != Builder->EmittedDeferredDecls.end()) {
-            // Use the name of the original GV, not that of our definition
-            // that's soon to be erased.
-            Builder->DeferredDecls[IEmittedDeferredDecl->second.first]
-              = IEmittedDeferredDecl->second.second;
-            Builder->EmittedDeferredDecls.erase(IEmittedDeferredDecl);
-          }
-        } else {
-          // might be an entry in the deferred decls, if so: remove!
-          auto IDeferredDecl = Builder->DeferredDecls.find(GV->getName());
-          if (IDeferredDecl != Builder->DeferredDecls.end()) {
-            // yes, pointer comparison.
-            if (IDeferredDecl->first.data() == GV->getName().data())
-              Builder->DeferredDecls.erase(IDeferredDecl);
-          }
-        }
-      }
     }
 
-    void forgetDecl(const GlobalDecl& GD) {
-      if (const auto VD = dyn_cast<VarDecl>(GD.getDecl())) {
-        if (!VD->isWeak() || !VD->isThisDeclarationADefinition())
-          return;
-      } else if (const auto FD = dyn_cast<FunctionDecl>(GD.getDecl())) {
-        if (!FD->isWeak() || !FD->isThisDeclarationADefinition())
-          return;
-      } else {
-        return;
-      }
-      // It's a weak, defined var or function decl.
-      StringRef MangledName = Builder->getMangledName(GD);
-      auto IDeferredDecl = Builder->DeferredDecls.find(MangledName);
-      if (IDeferredDecl != Builder->DeferredDecls.end()) {
-        if (IDeferredDecl->second == GD)
-          Builder->DeferredDecls.erase(IDeferredDecl);
-      }
+    void forgetDecl(const GlobalDecl& GD, llvm::StringRef MangledName) {
+      Builder->DeferredDecls.erase(MangledName);
     }
 
     void Initialize(ASTContext &Context) override {
@@ -409,7 +367,7 @@ namespace clang {
       // Provide some coverage mapping even for methods that aren't emitted.
       // Don't do this for templated classes though, as they may not be
       // instantiable.
-      if (!MD->getParent()->getDescribedClassTemplate())
+      if (!MD->getParent()->isDependentContext())
         Builder->AddDeferredUnusedCoverageMapping(MD);
     }
 
@@ -515,6 +473,10 @@ llvm::Module *CodeGenerator::ReleaseModule() {
   return static_cast<CodeGeneratorImpl*>(this)->ReleaseModule();
 }
 
+CGDebugInfo *CodeGenerator::getCGDebugInfo() {
+  return static_cast<CodeGeneratorImpl*>(this)->getCGDebugInfo();
+}
+
 const Decl *CodeGenerator::GetDeclForMangledName(llvm::StringRef name) {
   return static_cast<CodeGeneratorImpl*>(this)->GetDeclForMangledName(name);
 }
@@ -533,12 +495,13 @@ void CodeGenerator::forgetGlobal(llvm::GlobalValue* GV) {
   static_cast<CodeGeneratorImpl*>(this)->forgetGlobal(GV);
 }
 
-void CodeGenerator::forgetDecl(const GlobalDecl& GD) {
-  static_cast<CodeGeneratorImpl*>(this)->forgetDecl(GD);
+void CodeGenerator::forgetDecl(const GlobalDecl& GD,
+                               llvm::StringRef MangledName) {
+  static_cast<CodeGeneratorImpl*>(this)->forgetDecl(GD, MangledName);
 }
 
 
-llvm::Module *CodeGenerator::StartModule(const std::string& ModuleName,
+llvm::Module *CodeGenerator::StartModule(llvm::StringRef ModuleName,
                                          llvm::LLVMContext& C,
                                          const CodeGenOptions& CGO) {
   return static_cast<CodeGeneratorImpl*>(this)->StartModule(ModuleName, C, CGO);

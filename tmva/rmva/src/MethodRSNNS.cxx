@@ -42,7 +42,7 @@ using namespace TMVA;
 
 REGISTER_METHOD(RSNNS)
 
-ClassImp(MethodRSNNS)
+ClassImp(MethodRSNNS);
 
 //creating an Instance
 Bool_t MethodRSNNS::IsModuleLoaded = ROOT::R::TRInterface::Instance().Require("RSNNS");
@@ -134,7 +134,7 @@ MethodRSNNS::~MethodRSNNS(void)
 }
 
 //_______________________________________________________________________
-Bool_t MethodRSNNS::HasAnalysisType(Types::EAnalysisType type, UInt_t numberClasses, UInt_t numberTargets)
+Bool_t MethodRSNNS::HasAnalysisType(Types::EAnalysisType type, UInt_t numberClasses, UInt_t /*numberTargets*/)
 {
    if (type == Types::kClassification && numberClasses == 2) return kTRUE;
    return kFALSE;

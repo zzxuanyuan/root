@@ -1,0 +1,40 @@
+module "libc" [system] {
+  export *
+  module "assert.h" {
+    export *
+    textual header "assert.h"
+  }
+  module "ctype.h" {
+    export *
+    header "ctype.h"
+  }
+  module "errno.h" {
+    export *
+    header "errno.h"
+  }
+  module "fenv.h" {
+    export *
+    header "fenv.h"
+  }
+  module "inttypes.h" {
+    export *
+    header "inttypes.h"
+  }
+
+  module "xlocale.h" {
+    export *
+    header "xlocale.h"
+  }
+  module "setjmp.h" {
+    export *
+    header "setjmp.h"
+  }
+  module "math.h" {
+    export *
+    header "math.h"
+  }
+  module "stdio.h" {
+    export *
+    header "stdio.h"
+  }
+}

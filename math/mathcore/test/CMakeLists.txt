@@ -16,25 +16,30 @@ set(TestSource
     testIntegration.cxx
     testRootFinder.cxx
     testSampleQuantiles.cxx
-    kDTreeTest.cxx 
+    kDTreeTest.cxx
     testkdTreeBinning.cxx
-    newKDTreeTest.cxx 
+    newKDTreeTest.cxx
     binarySearchTime.cxx
     stdsort.cxx
     testSpecFuncErf.cxx
     testSpecFuncGamma.cxx
     testSpecFuncBeta.cxx
-    testSpecFuncBetaI.cxx 
-    testSpecFuncSiCi.cxx 
+    testSpecFuncBetaI.cxx
+    testSpecFuncSiCi.cxx
     testIntegrationMultiDim.cxx
     testAnalyticalIntegrals.cxx
     testTStatistic.cxx
+    testKahan.cxx
     fit/testFit.cxx
     fit/testGraphFit.cxx
     fit/SparseDataComparer.cxx
     fit/SparseFit4.cxx
-    fit/SparseFit3.cxx )
+    fit/SparseFit3.cxx
+    fit/testBinnedFitExecPolicy.cxx
+    fit/testLogLExecPolicy.cxx )
 
+set(testMathRandom_LABELS longtest)
+set(testFitPerf_LABELS longtest)
 
 if(ROOT_roofit_FOUND)
   list(APPEND TestSource fit/testRooFit.cxx)
@@ -59,6 +64,20 @@ endif()
 foreach(file ${TestSource})
   get_filename_component(testname ${file} NAME_WE)
   ROOT_EXECUTABLE(${testname} ${file} LIBRARIES ${Libraries})
-  ROOT_ADD_TEST(mathcore-${testname} COMMAND ${testname})
+  ROOT_ADD_TEST(mathcore-${testname} COMMAND ${testname} LABELS ${${testname}_LABELS})
 endforeach()
 
+ROOT_STANDARD_LIBRARY_PACKAGE(TrackMathCoreUnitDict
+                              NO_INSTALL_HEADERS
+                              NO_SOURCES
+                              HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/stress/TrackMathCore.h
+                              LINKDEF stress/TrackMathCoreLinkDef.h
+                              DEPENDENCIES Core MathCore RIO GenVector)
+
+ROOT_ADD_GTEST(stressMathCoreUnit stress/testSMatrix.cxx stress/testGenVector.cxx
+        stress/testStat.cxx stress/testSVector.cxx stress/testVector.cxx stress/testVector34.cxx
+        stress/TestHelper.cxx
+        LIBRARIES Core MathCore Hist RIO Tree GenVector)
+
+ROOT_ADD_GTEST(GradientUnit testGradient.cxx
+       LIBRARIES Core MathCore Hist RIO Tree GenVector)

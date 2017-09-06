@@ -1,4 +1,4 @@
-module "stl" {
+module "stl" [system] {
   export *
   module "algorithm" {
     export *
@@ -16,10 +16,7 @@ module "stl" {
     export *
     header "bitset"
   }
-  module "cassert" {
-    export *
-    header "cassert"
-  }
+  // no module for cassert to stay consistent with the OS X modulemap
   module "ccomplex" {
     export *
     header "ccomplex"
@@ -361,7 +358,7 @@ module "stl" {
     export *
     header "ext/functional"
   }
-  module "ext/hash_map" {
+/*  module "ext/hash_map" {
     export *
     header "ext/hash_map"
   }
@@ -369,6 +366,7 @@ module "stl" {
     export *
     header "ext/hash_set"
   }
+*/
   module "ext/numeric" {
     export *
     header "ext/numeric"

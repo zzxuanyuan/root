@@ -66,6 +66,16 @@
 // This is a side effect of wrapping, expression is compiled as */; so 2 errors
 */ // expected-error@2 {{expected expression}} expected-error@3 {{expected expression}}
 
+/* // /* */// expected-warning {{within block comment}}
+
+/* // /* *// */
+// expected-warning@input_line_27:2 {{within block comment}}
+// expected-error@input_line_27:2 {{expected expression}}
+// expected-error@input_line_27:2 {{expected expression}}
+// expected-error@input_line_27:3 {{expected expression}}
+
+/* //  *  // */
+
 // Check preprocessor blocked out
 /*
 #if 1
@@ -113,6 +123,11 @@
 *******************************************************
 */
 
+// Check inline slashes
+/*
+A/B
+*/
+
 32
 // CHECK-NEXT: (int) 32
 
@@ -129,6 +144,14 @@
     * :(
 */
 42
-// CHECK_NEXT: (int) 42
+// CHECK-NEXT: (int) 42
+
+(1/1)*1
+// CHECK-NEXT: (int) 1
+
+
+int A = 5, B = 25, *Ap = &A;
+B / *Ap
+// CHECK-NEXT: (int) 5
 
 .q

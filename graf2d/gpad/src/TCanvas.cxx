@@ -102,6 +102,15 @@ and in the batch mode simply do:
 ~~~ {.cpp}
       c->SetCanvasSize(w,h);
 ~~~
+
+If the canvas size this exceed the window size, scroll bars will be added to the canvas
+This allows to display very large canvases (even bigger than the screen size). The
+Following example shows how to proceed.
+~~~ {.cpp}
+TCanvas *c1 = new TCanvas("c1","c1");
+c1->SetCanvasSize(1500, 1500);
+c1->SetWindowSize(500, 500);
+~~~
 */
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,13 +118,32 @@ and in the batch mode simply do:
 
 TCanvas::TCanvas(Bool_t build) : TPad(), fDoubleBuffer(0)
 {
-   fPainter      = 0;
-   fWindowTopX   = 0;
-   fWindowTopY   = 0;
-   fWindowWidth  = 0;
-   fWindowHeight = 0;
-   fCw           = 0;
-   fCh           = 0;
+   fPainter          = 0;
+   fWindowTopX       = 0;
+   fWindowTopY       = 0;
+   fWindowWidth      = 0;
+   fWindowHeight     = 0;
+   fCw               = 0;
+   fCh               = 0;
+   fXsizeUser        = 0;
+   fYsizeUser        = 0;
+   fXsizeReal        = kDefaultCanvasSize;
+   fYsizeReal        = kDefaultCanvasSize;
+   fHighLightColor   = gEnv->GetValue("Canvas.HighLightColor", kRed);
+   fEvent            = -1;
+   fEventX           = -1;
+   fEventY           = -1;
+   fSelectedX        = 0;
+   fSelectedY        = 0;
+   fRetained         = kTRUE;
+   fDrawn            = kFALSE;
+   fSelected         = 0;
+   fClickSelected    = 0;
+   fSelectedPad      = 0;
+   fClickSelectedPad = 0;
+   fPadSave          = 0;
+   fCanvasImp        = 0;
+   fContextMenu      = 0;
 
    fUseGL = gStyle->GetCanvasPreferGL();
 
@@ -175,6 +203,7 @@ void TCanvas::Constructor()
 
 TCanvas::TCanvas(const char *name, Int_t ww, Int_t wh, Int_t winid) : TPad(), fDoubleBuffer(0)
 {
+   fCanvasImp = 0;
    fPainter = 0;
    Init();
 
@@ -198,10 +227,10 @@ TCanvas::TCanvas(const char *name, Int_t ww, Int_t wh, Int_t winid) : TPad(), fD
          fUseGL = kFALSE;
    }
 
-   CreatePainter();
-
-   fCanvasImp    = gBatchGuiFactory->CreateCanvasImp(this, name, fCw, fCh);
+   fCanvasImp = gBatchGuiFactory->CreateCanvasImp(this, name, fCw, fCh);
    if (!fCanvasImp) return;
+
+   CreatePainter();
    SetName(name);
    Build();
 }
@@ -679,7 +708,7 @@ void TCanvas::Clear(Option_t *option)
 {
    if (fCanvasID == -1) return;
 
-   R__LOCKGUARD2(gROOTMutex);
+   R__LOCKGUARD(gROOTMutex);
 
    TString opt = option;
    opt.ToLower();
@@ -739,7 +768,7 @@ void TCanvas::Close(Option_t *option)
          return;
       }
 
-      R__LOCKGUARD2(gROOTMutex);
+      R__LOCKGUARD(gROOTMutex);
 
       FeedbackMode(kFALSE);
 
@@ -751,7 +780,8 @@ void TCanvas::Close(Option_t *option)
 
          DeleteCanvasPainter();
 
-         if (fCanvasImp) fCanvasImp->Close();
+         if (fCanvasImp)
+            fCanvasImp->Close();
       }
       fCanvasID = -1;
       fBatch    = kTRUE;
@@ -759,7 +789,8 @@ void TCanvas::Close(Option_t *option)
       gROOT->GetListOfCanvases()->Remove(this);
 
       // Close actual window on screen
-      SafeDelete(fCanvasImp);
+      if (fCanvasImp)
+         SafeDelete(fCanvasImp);
    }
 
    if (cansave == this) {
@@ -1092,7 +1123,7 @@ void TCanvas::UseCurrentStyle()
       return;
    }
 
-   R__LOCKGUARD2(gROOTMutex);
+   R__LOCKGUARD(gROOTMutex);
 
    TPad::UseCurrentStyle();
 
@@ -1217,8 +1248,7 @@ void TCanvas::HandleInput(EEventType event, Int_t px, Int_t py)
 
          fSelected->ExecuteEvent(event, px, py);
          gVirtualX->Update();
-
-         if (!fSelected->InheritsFrom(TAxis::Class())) {
+         if (fSelected && !fSelected->InheritsFrom(TAxis::Class())) {
             Bool_t resize = kFALSE;
             if (fSelected->InheritsFrom(TBox::Class()))
                resize = ((TBox*)fSelected)->IsBeingResized();
@@ -1539,7 +1569,7 @@ void TCanvas::Resize(Option_t *)
       return;
    }
 
-   R__LOCKGUARD2(gROOTMutex);
+   R__LOCKGUARD(gROOTMutex);
 
    TPad *padsav  = (TPad*)gPad;
    cd();
@@ -1743,12 +1773,21 @@ void TCanvas::SaveSource(const char *filename, Option_t *option)
    }
 
    TString mname(fname);
+//    out <<"#ifdef __CLING__"<<std::endl;
+//    out <<"#pragma cling optimize(0)"<<std::endl;
+//    out <<"#endif"<<std::endl;
+//    out <<""<<std::endl;
    Int_t p = mname.Last('.');
    Int_t s = mname.Last('/')+1;
-   out <<"void " << mname(s,p-s) << "()" <<std::endl;
+
+   // A named macro is generated only if the function name is valid. If not, the
+   // macro is unnamed.
+   TString first(mname(s,s+1));
+   if (!first.IsDigit()) out <<"void " << mname(s,p-s) << "()" << std::endl;
+
    out <<"{"<<std::endl;
    out <<"//=========Macro generated from canvas: "<<GetName()<<"/"<<GetTitle()<<std::endl;
-   out <<"//=========  ("<<t.AsString()<<") by ROOT version"<<gROOT->GetVersion()<<std::endl;
+   out <<"//=========  ("<<t.AsString()<<") by ROOT version "<<gROOT->GetVersion()<<std::endl;
 
    if (gStyle->GetCanvasPreferGL())
       out <<std::endl<<"   gStyle->SetCanvasPreferGL(kTRUE);"<<std::endl<<std::endl;
@@ -1983,10 +2022,24 @@ void TCanvas::Streamer(TBuffer &b)
                }
             }
          }
+         //restore the palette if needed
+         TObjArray *currentpalette = (TObjArray*)fPrimitives->FindObject("CurrentColorPalette");
+         if (currentpalette) {
+           TIter nextpal(currentpalette);
+           Int_t n = currentpalette->GetEntries();
+           TArrayI palcolors(n);
+           TColor *col = 0;
+           Int_t i = 0;
+           while ((col = (TColor*)nextpal())) palcolors[i++] = col->GetNumber();
+           gStyle->SetPalette(n,palcolors.GetArray());
+           fPrimitives->Remove(currentpalette);
+           delete currentpalette;
+         }
          fPrimitives->Remove(colors);
          colors->Delete();
          delete colors;
       }
+
       if (v>7) b.ClassMember("fDISPLAY","TString");
       fDISPLAY.Streamer(b);
       if (v>7) b.ClassMember("fDoubleBuffer", "Int_t");
@@ -2050,15 +2103,27 @@ void TCanvas::Streamer(TBuffer &b)
       //in the same buffer. If the list of colors has already been saved
       //in the buffer, do not add the list of colors to the list of primitives.
       TObjArray *colors = 0;
-      if (!b.CheckObject(gROOT->GetListOfColors(),TObjArray::Class())) {
-         colors = (TObjArray*)gROOT->GetListOfColors();
-         fPrimitives->Add(colors);
+      TObjArray *CurrentColorPalette = 0;
+      if (TColor::DefinedColors()) {
+         if (!b.CheckObject(gROOT->GetListOfColors(),TObjArray::Class())) {
+            colors = (TObjArray*)gROOT->GetListOfColors();
+            fPrimitives->Add(colors);
+         }
+         //save the current palette
+         TArrayI pal = TColor::GetPalette();
+         Int_t palsize = pal.GetSize();
+         CurrentColorPalette = new TObjArray();
+         CurrentColorPalette->SetName("CurrentColorPalette");
+         for (Int_t i=0; i<palsize; i++) CurrentColorPalette->Add(gROOT->GetColor(pal[i]));
+         fPrimitives->Add(CurrentColorPalette);
       }
+
       R__c = b.WriteVersion(TCanvas::IsA(), kTRUE);
       b.ClassBegin(TCanvas::IsA());
       b.ClassMember("TPad");
       TPad::Streamer(b);
-      if(colors) fPrimitives->Remove(colors);
+      if (colors) fPrimitives->Remove(colors);
+      if (CurrentColorPalette) { fPrimitives->Remove(CurrentColorPalette); delete CurrentColorPalette; }
       b.ClassMember("fDISPLAY","TString");
       fDISPLAY.Streamer(b);
       b.ClassMember("fDoubleBuffer", "Int_t");
@@ -2209,18 +2274,21 @@ void TCanvas::Update()
       return;
    }
 
-   R__LOCKGUARD2(gROOTMutex);
+   R__LOCKGUARD(gROOTMutex);
 
    fUpdating = kTRUE;
 
-   if (!IsBatch()) FeedbackMode(kFALSE);      // Goto double buffer mode
+   if (!fCanvasImp->PerformUpdate()) {
 
-   if (!UseGL())
-      PaintModified();           // Repaint all modified pad's
+      if (!IsBatch()) FeedbackMode(kFALSE); // Goto double buffer mode
 
-   Flush();                   // Copy all pad pixmaps to the screen
+      if (!UseGL()) PaintModified(); // Repaint all modified pad's
 
-   SetCursor(kCross);
+      Flush(); // Copy all pad pixmaps to the screen
+
+      SetCursor(kCross);
+   }
+
    fUpdating = kFALSE;
 }
 
@@ -2263,9 +2331,11 @@ void TCanvas::CreatePainter()
 {
    //Even for batch mode painter is still required, just to delegate
    //some calls to batch "virtual X".
-   if (!UseGL() || fBatch)
-      fPainter = new TPadPainter;//Do not need plugin manager for this!
-   else {
+   if (!UseGL() || fBatch) {
+      fPainter = 0;
+      if (fCanvasImp) fPainter = fCanvasImp->CreatePadPainter();
+      if (!fPainter) fPainter = new TPadPainter; // Do not need plugin manager for this!
+   } else {
       fPainter = TVirtualPadPainter::PadPainter("gl");
       if (!fPainter) {
          Error("CreatePainter", "GL Painter creation failed! Will use default!");

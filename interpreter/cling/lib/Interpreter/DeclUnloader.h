@@ -59,7 +59,11 @@ namespace cling {
     ///\param[in] D - The declaration to forward.
     ///\returns true on success.
     ///
-    bool UnloadDecl(clang::Decl* D) { return Visit(D); }
+    bool UnloadDecl(clang::Decl* D) {
+      if (D->isFromASTFile())
+        return true;
+      return Visit(D);
+    }
 
     ///\brief If it falls back in the base class just remove the declaration
     /// only from the declaration context.
@@ -260,7 +264,7 @@ namespace cling {
     ///
     void CollectFilesToUncache(clang::SourceLocation Loc);
 
-    LLVM_CONSTEXPR static bool isDefinition(void*) { return false; }
+    constexpr static bool isDefinition(void*) { return false; }
     static bool isDefinition(clang::TagDecl* R);
 
     static void resetDefinitionData(void*) {
