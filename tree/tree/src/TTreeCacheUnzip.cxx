@@ -55,10 +55,8 @@ where bufferSize must be passed in bytes.
 #include "TROOT.h"
 #include "TEnv.h"
 
-#ifdef R__USE_IMT
-#include "tbb/task.h"
+#include "ROOT/TTaskGroup.hxx"
 #include <vector>
-#endif
 
 extern "C" void R__unzip(Int_t *nin, UChar_t *bufin, Int_t *lout, char *bufout, Int_t *nout);
 extern "C" int R__unzip_header(Int_t *nin, UChar_t *bufin, Int_t *lout);
@@ -120,7 +118,7 @@ TTreeCacheUnzip::TTreeCacheUnzip(TTree *tree, Int_t buffersize) : TTreeCache(tre
 
 void TTreeCacheUnzip::Init()
 {
-   root = nullptr;
+   fUnzipTaskGroup = nullptr;
    fIOMutex          = new TMutex(kTRUE);
 
    fCompBuffer = new char[16384];
@@ -443,12 +441,12 @@ Int_t TTreeCacheUnzip::GetRecordHeader(char *buf, Int_t maxbytes, Int_t &nbytes,
 void TTreeCacheUnzip::ResetCache()
 {
    // If root spawn unzipping tasks before, we need to wait here until all basket in current cache are unzipped.
-   if(root) {
-      root->wait();
-      delete root;
+   if(fUnzipTaskGroup) {
+      fUnzipTaskGroup->Wait();
+      delete fUnzipTaskGroup;
    }
 
-   root = nullptr;
+   fUnzipTaskGroup = nullptr;
 
    if (gDebug > 0)
       Info("ResetCache", "Thread: %ld -- Resetting the cache. fNseek:%d fNSeekMax:%d", TThread::SelfId(), fNseek, fNseekMax);
@@ -623,11 +621,13 @@ Int_t TTreeCacheUnzip::CreateTasks()
       return nullptr;
    };
 */
-   auto assignBasketFunction = [&]() {
 
+   fUnzipTaskGroup = new ROOT::Experimental::TTaskGroup();
+
+   fUnzipTaskGroup->Run([&]() {
       Int_t accusz = 0;
       std::vector<Int_t> indices;
-      tbb::task_group *tg = new tbb::task_group();
+      ROOT::Experimental::TTaskGroup *tg = new ROOT::Experimental::TTaskGroup();
       for (Int_t i = 0; i < fNseek; i++) {
          while (accusz < 102400) {
             accusz += fSeekLen[i];
@@ -636,7 +636,7 @@ Int_t TTreeCacheUnzip::CreateTasks()
             if (i >= fNseek) break;
          }
          if (i < fNseek) i--;
-         tg->run([&, indices]() {
+         tg->Run([&, indices]() {
 //            printf("in unzipBasketFunction, indices.size() = %lu\n", indices.size());//##
 //            for(unsigned int j = 0; j < indices.size(); ++j) printf("indices[%u]=%d\n",j,indices[j]);//##
             for (auto j : indices) {
@@ -656,14 +656,11 @@ Int_t TTreeCacheUnzip::CreateTasks()
          indices.clear();
          accusz = 0;
       }
-      tg->wait();
+      tg->Wait();
       delete tg;
       return nullptr;
-   };
+   });
 
-   root = new tbb::task_group();
-
-   root->run(assignBasketFunction);
 //   printf("at the end of CreateTasks\n");//##
    return 0;
 }

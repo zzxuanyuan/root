@@ -29,10 +29,8 @@
 
 #include <queue>
 
-#ifdef R__USE_IMT
-#include "tbb/task_group.h"
+#include "ROOT/TTaskGroup.hxx"
 #include <atomic>
-#endif
 
 class TTree;
 class TBranch;
@@ -53,7 +51,7 @@ public:
 
 protected:
 
-   tbb::task_group *root;
+   ROOT::Experimental::TTaskGroup *fUnzipTaskGroup;
 
    // Members for paral. managing
    Bool_t      fParallel;              ///< Indicate if we want to activate the parallelism (for this instance)
