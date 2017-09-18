@@ -56,6 +56,7 @@ where bufferSize must be passed in bytes.
 #include "TEnv.h"
 
 #include "ROOT/TTaskGroup.hxx"
+#include "ROOT/TThreadExecutor.hxx"
 #include <vector>
 
 extern "C" void R__unzip(Int_t *nin, UChar_t *bufin, Int_t *lout, char *bufout, Int_t *nout);
@@ -622,8 +623,46 @@ Int_t TTreeCacheUnzip::CreateTasks()
    };
 */
 
-   fUnzipTaskGroup = new ROOT::Experimental::TTaskGroup();
+   auto mapFunction = [&]() {
+      auto unzipFunction = [&](const std::vector<Int_t> &indices) {
+         for (auto ii : indices) {
+            Byte_t oldV = 0;
+            Byte_t newV = 1;
+            if(fUnzipStatus[ii].compare_exchange_weak(oldV, newV, std::memory_order_release, std::memory_order_relaxed)) {
+               Int_t locbuffsz = 16384;
+               char *locbuff = new char[16384];
+               Int_t res = UnzipCache(ii, locbuffsz, locbuff);
+               if(res)
+                  if (gDebug > 0)
+                     Info("UnzipCache", "Unzipping failed or cache is in learning state");
+            }
+         }
+         return nullptr;
+      };
 
+      Int_t accusz = 0;
+      std::vector<std::vector<Int_t>> basketIndices;
+      std::vector<Int_t> indices;
+      for (Int_t i = 0; i < fNseek; i++) {
+         while (accusz < 102400) {
+            accusz += fSeekLen[i];
+            indices.push_back(i);
+            i++;
+            if (i >= fNseek) break;
+         }
+         if (i < fNseek) i--;
+         basketIndices.push_back(indices);
+         indices.clear();
+         accusz = 0;
+      }
+      ROOT::TThreadExecutor pool;
+      pool.Foreach(unzipFunction, basketIndices);
+   };
+
+   fUnzipTaskGroup = new ROOT::Experimental::TTaskGroup();
+   fUnzipTaskGroup->Run(mapFunction);
+
+/*
    fUnzipTaskGroup->Run([&]() {
       Int_t accusz = 0;
       std::vector<Int_t> indices;
@@ -637,8 +676,6 @@ Int_t TTreeCacheUnzip::CreateTasks()
          }
          if (i < fNseek) i--;
          tg->Run([&, indices]() {
-//            printf("in unzipBasketFunction, indices.size() = %lu\n", indices.size());//##
-//            for(unsigned int j = 0; j < indices.size(); ++j) printf("indices[%u]=%d\n",j,indices[j]);//##
             for (auto j : indices) {
                Byte_t oldV = 0;
                Byte_t newV = 1;
@@ -660,8 +697,7 @@ Int_t TTreeCacheUnzip::CreateTasks()
       delete tg;
       return nullptr;
    });
-
-//   printf("at the end of CreateTasks\n");//##
+*/
    return 0;
 }
 

@@ -39,9 +39,6 @@ class TCondition;
 class TBasket;
 class TMutex;
 
-class MappingTask;
-class UnzipTask;
-
 class TTreeCacheUnzip : public TTreeCache {
 
 public:
