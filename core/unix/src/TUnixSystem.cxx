@@ -2495,6 +2495,7 @@ void TUnixSystem::StackTrace()
    }
 #endif
 #else //R__MACOSX
+  printf("calling macosx_backtrace()\n");//##
   macosx_backtrace();
 #endif //R__MACOSX
 }

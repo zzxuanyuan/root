@@ -97,6 +97,16 @@
 
 class TFdSet;
 
+static const int kStringLength = 255;
+
+struct StackTraceHelper_t {
+   char  fShellExec[kStringLength];
+   char  fPidString[kStringLength];
+   char  fPidNum[kStringLength];
+   int   fParentToChild[2];
+   int   fChildToParent[2];
+   std::unique_ptr<std::thread> fHelperThread;
+};
 #if defined(HAVE_DLADDR) && !defined(R__MACOSX)
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -222,8 +232,9 @@ static int SignalSafeErrWrite(const char *text) {
 
 //---- helper -----------------------------------------------------------------
 
-static const int kStringLength = 255;
 
+static StackTraceHelper_t gStackTraceHelper;
+/*
 static struct StackTraceHelper_t {
    char  fShellExec[kStringLength];
    char  fPidString[kStringLength];
@@ -235,11 +246,11 @@ static struct StackTraceHelper_t {
    { },
    { },
    { },
-   {-1,-1},
-   {-1,-1},
+   {-5,-5},
+   {-5,-5},
    nullptr
 };
-
+*/
 static char * const kStackArgv[] = {gStackTraceHelper.fShellExec, gStackTraceHelper.fPidString, gStackTraceHelper.fPidNum, nullptr};
 
 //////////////////////////////////////////////////////////////////////////////
@@ -272,6 +283,19 @@ void TUnixSignalManager::Init()
 
    fSignals    = new TFdSet;
 
+//   gStackTraceHelper.fShellExec[kStringLength];//##
+   memset(gStackTraceHelper.fShellExec, kStringLength, 0);
+//   gStackTraceHelper.fPidString[kStringLength];
+   memset(gStackTraceHelper.fPidString, kStringLength, 0);
+//   gStackTraceHelper.fPidNum[kStringLength];
+   memset(gStackTraceHelper.fPidNum, kStringLength, 0);
+   gStackTraceHelper.fParentToChild[0] = -5;
+   gStackTraceHelper.fParentToChild[1] = -5;
+   gStackTraceHelper.fChildToParent[0] = -5;
+   gStackTraceHelper.fChildToParent[1] = -5;
+   gStackTraceHelper.fHelperThread = nullptr;
+
+   printf("mac running in TUnixSignalManager::Init(), gStackTraceHelper.fChildToParent = [%d, %d]\n", gStackTraceHelper.fChildToParent[0], gStackTraceHelper.fChildToParent[1]);//##
    //--- install default handlers
    UnixSignal(kSigChild,                 SigHandler);
    UnixSignal(kSigBus,                   SigHandler);
@@ -301,12 +325,14 @@ void TUnixSignalManager::Init()
    }
 #endif
 
-   gStackTraceHelper.fParentToChild[0] = -1;
-   gStackTraceHelper.fParentToChild[1] = -1;
-   gStackTraceHelper.fChildToParent[0] = -1;
-   gStackTraceHelper.fChildToParent[1] = -1;
+   gStackTraceHelper.fParentToChild[0] = -2;
+   gStackTraceHelper.fParentToChild[1] = -2;
+   gStackTraceHelper.fChildToParent[0] = -2;
+   gStackTraceHelper.fChildToParent[1] = -2;
 
    StackTraceHelperInit();
+   sleep(2);//##
+   printf("main thread end init(), gStackTraceHelper.fChildToParent = [%d, %d]\n", gStackTraceHelper.fChildToParent[0], gStackTraceHelper.fChildToParent[1]);//##
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -491,6 +517,7 @@ static void sighandler(int sig)
 
 void TUnixSignalManager::DispatchSignals(ESignals sig)
 {
+   printf("Beginning DispatchSignals(), gStackTraceHelper.fChildToParent = [%d, %d]\n", gStackTraceHelper.fChildToParent[0], gStackTraceHelper.fChildToParent[1]);//##
    switch (sig) {
    case kSigAlarm:
       ((TUnixSystem *)gSystem)->DispatchTimers(kFALSE);
@@ -549,6 +576,7 @@ void TUnixSignalManager::DispatchSignals(ESignals sig)
 
 void TUnixSignalManager::UnixSignal(ESignals sig, SigHandler_t handler)
 {
+   printf("Begin of UnixSignal(), gStackTraceHelper.fChildToParent = [%d, %d]\n", gStackTraceHelper.fChildToParent[0], gStackTraceHelper.fChildToParent[1]);//##
    if (gEnv && !gEnv->GetValue("Root.ErrorHandlers", 1))
       return;
 
@@ -580,6 +608,7 @@ void TUnixSignalManager::UnixSignal(ESignals sig, SigHandler_t handler)
                     gSignalMap[sig].fOldHandler) < 0)
          ::SysError("TUnixSignalManager::UnixSignal", "sigaction");
    }
+   printf("End of UnixSignal(), gStackTraceHelper.fChildToParent = [%d, %d]\n", gStackTraceHelper.fChildToParent[0], gStackTraceHelper.fChildToParent[1]);//##
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -716,12 +745,13 @@ void TUnixSignalManager::StackTraceHelperInit()
 
    close(gStackTraceHelper.fChildToParent[0]);
    close(gStackTraceHelper.fChildToParent[1]);
-   gStackTraceHelper.fChildToParent[0] = -1; gStackTraceHelper.fChildToParent[1] = -1;
+   gStackTraceHelper.fChildToParent[0] = -3; gStackTraceHelper.fChildToParent[1] = -3;
    close(gStackTraceHelper.fParentToChild[0]);
    close(gStackTraceHelper.fParentToChild[1]);
-   gStackTraceHelper.fParentToChild[0] = -1; gStackTraceHelper.fParentToChild[1] = -1;
+   gStackTraceHelper.fParentToChild[0] = -3; gStackTraceHelper.fParentToChild[1] = -3;
 
 #ifdef R__MACOSX
+   printf("create pipe on macosx\n");//##
    if (-1 == pipe(gStackTraceHelper.fChildToParent))
 #else
    if (-1 == pipe2(gStackTraceHelper.fChildToParent, O_CLOEXEC))
@@ -737,10 +767,12 @@ void TUnixSignalManager::StackTraceHelperInit()
 #endif
    {
       close(gStackTraceHelper.fChildToParent[0]); close(gStackTraceHelper.fChildToParent[1]);
-      gStackTraceHelper.fChildToParent[0] = -1; gStackTraceHelper.fChildToParent[1] = -1;
+      gStackTraceHelper.fChildToParent[0] = -4; gStackTraceHelper.fChildToParent[1] = -4;
       fprintf(stdout, "pipe parentToChild failed\n");
       return;
    }
+   printf("gStackTraceHelper.fChildToParent = [%d, %d]\n", gStackTraceHelper.fChildToParent[0], gStackTraceHelper.fChildToParent[1]);//##
+   printf("gStackTraceHelper.fParentToChild = [%d, %d]\n", gStackTraceHelper.fParentToChild[0], gStackTraceHelper.fParentToChild[1]);//##
 
    gStackTraceHelper.fHelperThread.reset(new std::thread(StackTraceMonitorThread));
    gStackTraceHelper.fHelperThread->detach();
@@ -755,6 +787,7 @@ void TUnixSignalManager::StackTraceMonitorThread()
    int fromParent = gStackTraceHelper.fParentToChild[0];
    char buf[2]; buf[1] = '\0';
    while(true) {
+      printf("StackTraceMonitorThread(), gStackTraceHelper.fChildToParent = [%d, %d]\n", gStackTraceHelper.fChildToParent[0], gStackTraceHelper.fChildToParent[1]);//##
       int result = SignalSafeRead(fromParent, buf, 1, 5*60);
       if (result < 0) {
          UnixSetDefaultSignals();
@@ -793,6 +826,7 @@ void TUnixSignalManager::StackTraceMonitorThread()
 
 void TUnixSignalManager::StackTraceTriggerThread()
 {
+   printf("in StackTraceTriggerThread(), gStackTraceHelper.fChildToParent = [%d, %d]\n", gStackTraceHelper.fChildToParent[0], gStackTraceHelper.fChildToParent[1]);//##
    int result = SignalSafeWrite(gStackTraceHelper.fParentToChild[1], "1");
    if (result < 0) {
       SignalSafeErrWrite("\n\nAttempt to request stacktrace failed: ");
@@ -823,7 +857,15 @@ void TUnixSignalManager::StackTraceForkThread()
 #else
       fork();
    if (childStackPtr) {} // Suppress 'unused variable' warning on non-Linux
+#ifdef R__MACOSX
+   if (pid == 0) {
+      printf("This is defined R__MACOSX\n");//##
+      gSystem->StackTrace();
+      gSystem->Exit(0, kFALSE);
+   }
+#else
    if (pid == 0) { StackTraceExecScript(nullptr); gSystem->Exit(0, kFALSE); }
+#endif
 #endif
    if (pid == -1) {
       SignalSafeErrWrite("(Attempt to perform stack dump failed.)\n");
@@ -844,10 +886,16 @@ void TUnixSignalManager::StackTraceForkThread()
 
 int TUnixSignalManager::StackTraceExecScript(void * /*arg*/)
 {
+   SignalSafeErrWrite("In StackTraceExecScript()\n");//##;
    char *const *argv = GetStackArgv();
 #ifdef __linux__
    syscall(SYS_execve, "/bin/sh", argv, __environ);
 #else
+   int i = 0;//##
+   while(argv[i]) {
+      SignalSafeErrWrite(argv[i]);//##
+      i++;
+   }
    execv("/bin/sh", argv);
 #endif
    gSystem->Exit(0, kFALSE);
