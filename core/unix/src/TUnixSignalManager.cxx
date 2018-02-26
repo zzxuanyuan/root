@@ -272,6 +272,12 @@ void TUnixSignalManager::Init()
 
    fSignals    = new TFdSet;
 
+   //--- initialize pipe-related data structer here, macosx does not recognize their values if they were inialized after UnixSignal functions
+   gStackTraceHelper.fParentToChild[0] = -1;
+   gStackTraceHelper.fParentToChild[1] = -1;
+   gStackTraceHelper.fChildToParent[0] = -1;
+   gStackTraceHelper.fChildToParent[1] = -1;
+
    //--- install default handlers
    UnixSignal(kSigChild,                 SigHandler);
    UnixSignal(kSigBus,                   SigHandler);
@@ -300,11 +306,6 @@ void TUnixSignalManager::Init()
       return;
    }
 #endif
-
-   gStackTraceHelper.fParentToChild[0] = -1;
-   gStackTraceHelper.fParentToChild[1] = -1;
-   gStackTraceHelper.fChildToParent[0] = -1;
-   gStackTraceHelper.fChildToParent[1] = -1;
 
    StackTraceHelperInit();
 }
