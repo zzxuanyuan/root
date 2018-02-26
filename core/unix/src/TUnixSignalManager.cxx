@@ -307,7 +307,9 @@ void TUnixSignalManager::Init()
    }
 #endif
 
+#ifdef R__LINUX
    StackTraceHelperInit();
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -528,7 +530,11 @@ void TUnixSignalManager::DispatchSignals(ESignals sig)
 
    if ((sig == kSigIllegalInstruction) || (sig == kSigSegmentationViolation) || (sig == kSigBus) || (sig == kSigFloatingException))
    {
+#if defined(R__LINUX)
       StackTraceTriggerThread();
+#elif defined(R__MACOSX)
+      StackTrace();
+#endif
       signal(sig, SIG_DFL);
       raise(sig);
       if (gApplication)
