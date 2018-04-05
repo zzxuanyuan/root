@@ -296,12 +296,20 @@ void TUnixSignalManager::Init()
    }
 
 #ifdef ROOTETCDIR
+#if defined(R__MACOSX)
+   if(snprintf(gStackTraceHelper.fPidString, kStringLength-1, "%s/lldb-backtrace.sh", ROOTETCDIR) >= kStringLength) {
+#else
    if(snprintf(gStackTraceHelper.fPidString, kStringLength-1, "%s/gdb-backtrace.sh", ROOTETCDIR) >= kStringLength) {
+#endif
       SignalSafeErrWrite("Unable to pre-allocate executable information");
       return;
    }
 #else
+#if defined(R__MACOSX)
+   if(snprintf(gStackTraceHelper.fPidString, kStringLength-1, "%s/etc/lldb-backtrace.sh", gSystem->Getenv("ROOTSYS")) >= kStringLength) {
+#else
    if(snprintf(gStackTraceHelper.fPidString, kStringLength-1, "%s/etc/gdb-backtrace.sh", gSystem->Getenv("ROOTSYS")) >= kStringLength) {
+#endif
       SignalSafeErrWrite("Unable to pre-allocate executable information");
       return;
    }
