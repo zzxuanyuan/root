@@ -97,6 +97,17 @@
 
 class TFdSet;
 
+static const int kStringLength = 255;
+
+struct StackTraceHelper_t {
+   char  fShellExec[kStringLength];
+   char  fPidString[kStringLength];
+   char  fPidNum[kStringLength];
+   int   fParentToChild[2];
+   int   fChildToParent[2];
+   std::unique_ptr<std::thread> fHelperThread;
+};
+
 #if defined(HAVE_DLADDR) && !defined(R__MACOSX)
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -222,23 +233,7 @@ static int SignalSafeErrWrite(const char *text) {
 
 //---- helper -----------------------------------------------------------------
 
-static const int kStringLength = 255;
-
-static struct StackTraceHelper_t {
-   char  fShellExec[kStringLength];
-   char  fPidString[kStringLength];
-   char  fPidNum[kStringLength];
-   int   fParentToChild[2];
-   int   fChildToParent[2];
-   std::unique_ptr<std::thread> fHelperThread;
-} gStackTraceHelper = {       // the order of the signals should be identical
-   { },
-   { },
-   { },
-   {-1,-1},
-   {-1,-1},
-   nullptr
-};
+static StackTraceHelper_t gStackTraceHelper;
 
 static char * const kStackArgv[] = {gStackTraceHelper.fShellExec, gStackTraceHelper.fPidString, gStackTraceHelper.fPidNum, nullptr};
 
@@ -277,6 +272,7 @@ void TUnixSignalManager::Init()
    gStackTraceHelper.fParentToChild[1] = -1;
    gStackTraceHelper.fChildToParent[0] = -1;
    gStackTraceHelper.fChildToParent[1] = -1;
+   gStackTraceHelper.fHelperThread = nullptr;
 
    //--- install default handlers
    UnixSignal(kSigChild,                 SigHandler);
