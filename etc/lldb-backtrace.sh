@@ -14,7 +14,7 @@ if [ `uname -s` != "Darwin" ]; then
 else
 
    if test $# -lt 1; then
-      echo "Usage: ${tempname} <process-id> [gdb-mess-file]" 1>&2
+      echo "Usage: ${tempname} <process-id>" 1>&2
       exit 1
    fi
 
@@ -24,7 +24,7 @@ else
       exit 1
    fi
 
-   backtrace="thread apply all bt"
+   backtrace="thread backtrace all"
 
    echo $backtrace > $TMPFILE
 
