@@ -15,31 +15,9 @@ if( CMAKE_SIZEOF_VOID_P EQUAL 4 ) # With this we exclude ROOTDataFrame on 32 bit
   list(REMOVE_ITEM PYROOT_PKG_DEPENDENCIES ROOTDataFrame)
 endif()
 
-set(PYROOT_SOURCES Converters.cxx         TFunctionHolder.cxx
-                   TPyBufferFactory.cxx   TPyReturn.cxx
-                   RootModule.cxx         TConstructorHolder.cxx
-                   TPyROOTApplication.cxx Utility.cxx
-                   Cppyy.cxx              PyRootType.cxx
-                   RootWrapper.cxx        TMemoryRegulator.cxx
-                   TPyClassGenerator.cxx  TPySelector.cxx
-                   ObjectProxy.cxx        TCustomPyTypes.cxx
-                   TPython.cxx            Executors.cxx
-                   PyStrings.cxx          TCallContext.cxx
-                   TMethodHolder.cxx      TPyDispatcher.cxx
-                   TSetItemHolder.cxx     PropertyProxy.cxx
-                   TemplateProxy.cxx      TPyException.cxx
-                   MethodProxy.cxx        Pythonize.cxx
-                   TClassMethodHolder.cxx TPyArg.cxx
-                   TPyFitFunction.cxx     TTupleOfInstances.cxx)
-
-if(NUMPY_FOUND)
-  set(sources ${sources} NumpyInterface.cxx)
-endif()
-
 ROOT_STANDARD_LIBRARY_PACKAGE(PyROOT
                               NO_INSTALL_HEADERS
                               HEADERS ${PYROOT_HEADERS}
-                              SOURCES ${PYROOT_SOURCES}
                               DICTIONARY_OPTIONS "-writeEmptyRootPCM"
                               LIBRARIES Core MathCore Net Rint Tree
                               DEPENDENCIES ${PYROOT_PKG_DEPENDENCIES})
