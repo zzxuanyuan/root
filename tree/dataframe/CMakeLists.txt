@@ -27,6 +27,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(ROOTDataFrame
     ROOT/RLazyDS.hxx
     ROOT/RResultPtr.hxx
     ROOT/RRootDS.hxx
+    ROOT/RRootBulkDS.hxx
     ROOT/RSnapshotOptions.hxx
     ROOT/RTrivialDS.hxx
     ROOT/RDF/ActionHelpers.hxx
@@ -78,6 +79,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(ROOTDataFrame
     src/RLoopManager.cxx
     src/RRangeBase.cxx
     src/RRootDS.cxx
+    src/RRootBulkDS.cxx
     src/RSlotStack.cxx
     src/RTrivialDS.cxx
   DICTIONARY_OPTIONS
