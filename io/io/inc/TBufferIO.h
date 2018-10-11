@@ -71,6 +71,8 @@ public:
       kUser3 = BIT(23)  // free for user
    };
 
+   TBufferIO(TBufferIO &&) = default;
+
    virtual ~TBufferIO();
 
    virtual Int_t GetVersionOwner() const;

@@ -57,8 +57,8 @@ protected:
      fBufCur(0), fBufMax(0), fParent(0), fReAllocFunc(0), fCacheStack(0,(TVirtualArray*)0) {}
 
    // TBuffer objects cannot be copied or assigned
-   TBuffer(const TBuffer &);           // not implemented
-   void operator=(const TBuffer &);    // not implemented
+   TBuffer(const TBuffer &) = delete;           // not implemented
+   void operator=(const TBuffer &) = delete;    // not implemented
 
    Int_t Read(const char *name) { return TObject::Read(name); }
    Int_t Write(const char *name, Int_t opt, Int_t bufs)
@@ -78,6 +78,7 @@ public:
    TBuffer(EMode mode, Int_t bufsiz);
    TBuffer(EMode mode, Int_t bufsiz, void *buf, Bool_t adopt = kTRUE, ReAllocCharFun_t reallocfunc = 0);
    virtual ~TBuffer();
+   TBuffer(TBuffer &&) = default;
 
    Int_t    GetBufferVersion() const { return fVersion; }
    Bool_t   IsReading() const { return (fMode & kWrite) == 0; }

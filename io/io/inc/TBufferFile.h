@@ -55,8 +55,8 @@ protected:
    TBufferFile() = default;
 
    // TBuffer objects cannot be copied or assigned
-   TBufferFile(const TBufferFile &);       ///<  not implemented
-   void operator=(const TBufferFile &);    ///<  not implemented
+   TBufferFile(const TBufferFile &) = delete;       ///<  not implemented
+   void operator=(const TBufferFile &) = delete;    ///<  not implemented
 
    Int_t  CheckByteCount(UInt_t startpos, UInt_t bcnt, const TClass *clss, const char* classname);
    virtual void  CheckCount(UInt_t offset);
@@ -71,6 +71,7 @@ public:
    TBufferFile(TBuffer::EMode mode, Int_t bufsiz);
    TBufferFile(TBuffer::EMode mode, Int_t bufsiz, void *buf, Bool_t adopt = kTRUE, ReAllocCharFun_t reallocfunc = 0);
    virtual ~TBufferFile();
+   TBufferFile(TBufferFile&&) = default;
 
    virtual Int_t      CheckByteCount(UInt_t startpos, UInt_t bcnt, const TClass *clss);
    virtual Int_t      CheckByteCount(UInt_t startpos, UInt_t bcnt, const char *classname);
