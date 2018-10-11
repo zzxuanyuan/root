@@ -137,9 +137,9 @@ void RLoopManager::RunDataSource()
    auto ranges = fDataSource->GetEntryRanges();
    while (!ranges.empty()) {
       InitNodeSlots(nullptr, 0u);
-      fDataSource->InitSlot(0u, 0ull);
       for (const auto &range : ranges) {
          auto end = range.second;
+         fDataSource->InitSlot(0u, range.first);
          for (auto entry = range.first; entry < end; ++entry) {
             if (fDataSource->SetEntry(0u, entry)) {
                RunAndCheckFilters(0u, entry);
