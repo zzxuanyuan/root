@@ -57,18 +57,22 @@ public:
          fBufferMap.push_back(nullptr);
          auto br = dynamic_cast<TBranch*>((*branchList)[idx]);
          if (!br || !br->SupportsBulkRead()) {
+            printf("Skipping branch %s as it does not support bulk reads.\n", br->GetName());
             continue;
          }
          EDataType dt;
          TClass *cls = nullptr;
-         if (!br->GetExpectedType(cls, dt)) {
+         if (br->GetExpectedType(cls, dt)) {
+            printf("Skipping branch %s as we failed to retrieve the expected type info.\n", br->GetName());
             continue;
          }
          if (dt == kFloat_t || dt == kInt_t || dt == kUInt_t) {
-            fFourByteBuffers.emplace_back(TBuffer::kWrite);
+            fFourByteBuffers.emplace_back(TBuffer::kWrite, 32*1024);
             fBufferMap.back() = &fFourByteBuffers.back();
             fFourByteValues.push_back(0);
             fAddressMap.back() = &fFourByteValues.back();
+         } else {
+            printf("Skipping branch %s as its data type (%d) is not exactly 4 bytes.\n", br->GetName(), dt);
          }
       }
    }
@@ -80,8 +84,6 @@ public:
 
    bool SetEntry(ULong64_t entry) {
       // TODO: handle random skips.
-      fCurRelEntry++;
-      fCurAbsEntry++;
       if (R__unlikely(fCurAbsEntry != entry)) {
           return false;
       }
@@ -91,6 +93,8 @@ public:
          char *tmp_ptr = reinterpret_cast<char *>(&tmp);
          frombuf(tmp_ptr, &fFourByteValues[idx]);
       }
+      fCurRelEntry++;
+      fCurAbsEntry++;
       return true;
    }
 
@@ -98,7 +102,7 @@ public:
    // Initialize a cluster range for processing.
    // Returns true if successful
    // On success, sets entry count to the number of available entries.
-   bool InitSlot(ULong64_t firstEntry, Int_t &entryCount)
+   bool SetEntryRange(ULong64_t firstEntry, Int_t &entryCount)
    {
       const TObjArray *branchList = fCurTree->GetListOfBranches();
       Int_t branchCount = branchList->GetEntriesFast();
@@ -133,7 +137,6 @@ namespace Experimental {
 // the given slot.
 std::vector<void *> RRootBulkDS::GetColumnReadersImpl(std::string_view name, const std::type_info &id)
 {
-   printf("RRootBulkDS::GetColumnReadersImpl\n");
    const auto colTypeName = GetTypeName(name);
    const auto &colTypeId = ROOT::Internal::RDF::TypeName2TypeID(colTypeName);
    if (id != colTypeId) {
@@ -203,7 +206,7 @@ bool RRootBulkDS::HasColumn(std::string_view colName) const
 void RRootBulkDS::InitSlot(unsigned int slot, ULong64_t firstEntry)
 {
    Int_t eventCount;
-   if (!fBufferMgrs[slot]->InitSlot(firstEntry, eventCount)) {
+   if (!fBufferMgrs[slot]->SetEntryRange(firstEntry, eventCount)) {
       throw std::runtime_error("Failed to initialize slot");
    }
    // TODO: compare eventCount against calculated event ranges -- should be the same sizes!
@@ -223,6 +226,7 @@ void RRootBulkDS::InitialiseSlot(unsigned int slot)
 
 std::vector<std::pair<ULong64_t, ULong64_t>> RRootBulkDS::GetEntryRanges()
 {
+   if (fReturnedFirstRange) return {};
    // TODO: Improve this to allow for multi-file chains.
 
    Long64_t clusterStart = 0;
@@ -235,13 +239,17 @@ std::vector<std::pair<ULong64_t, ULong64_t>> RRootBulkDS::GetEntryRanges()
       entryRanges.emplace_back(clusterStart, clusterIter.GetNextEntry());
    }
 
+   fReturnedFirstRange = true;
    return entryRanges;
 }
 
 
 bool RRootBulkDS::SetEntry(unsigned int slot, ULong64_t entry)
 {
-   return fBufferMgrs[slot]->SetEntry(entry);
+   //printf("RRootBulkDS::SetEntry slot %u, entry %llu\n", slot, entry);
+   bool result = fBufferMgrs[slot]->SetEntry(entry);
+   //printf("Value: %d\n", **static_cast<int**>(fBufferMgrs[slot]->getColumnTargetPtr(0)));
+   return result;
 }
 
 
@@ -249,6 +257,7 @@ void RRootBulkDS::SetNSlots(unsigned int nSlots)
 {
    R__ASSERT(0U == fNSlots && "Setting the number of slots even if the number of slots is different from zero.");
 
+   //printf("Setting parallelism to %u\n", nSlots);
    fNSlots = nSlots;
    fChains.resize(fNSlots);
    fBufferMgrs.resize(fNSlots);

@@ -31,6 +31,7 @@ namespace Experimental {
 
 class RRootBulkDS final : public ROOT::RDF::RDataSource {
 private:
+   bool fReturnedFirstRange{false};
    unsigned int fNSlots{0U};
    std::string fTreeName;
    std::string fFileNameGlob;
