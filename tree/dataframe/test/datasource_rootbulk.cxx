@@ -1,6 +1,8 @@
 #include <TBufferFile.h>
 #include <ROOT/RDataFrame.hxx>
 #include <ROOT/RRootBulkDS.hxx>
+#include <ROOT/TTreeReaderFast.hxx>
+#include <ROOT/TTreeReaderValueFast.hxx>
 #include <ROOT/TBulkBranchRead.hxx>
 #include <ROOT/TSeq.hxx>
 
@@ -19,7 +21,8 @@ auto fileNameBig = "RRootBulkDS_input_big.root";
 auto treeName = "t";
 
 auto eventCount = 10;
-auto bigEventCount = 10e6;
+auto bigEventCount = 100e6;
+auto bigFlushSize = 50e3;
 const auto kSlots = 4U;
 
 TEST(RRootBulkDS, GenerateData)
@@ -38,6 +41,8 @@ TEST(RRootBulkDS, GenerateData)
 
    // Otherwise, we keep with the current ROOT defaults.
    auto tree = new TTree("t", "A ROOT tree of floats.");
+   tree->SetAutoFlush(bigFlushSize);
+   tree->SetBit(TTree::kOnlyFlushAtCluster);
    int f = 2;
    tree->Branch("myInt", &f, 320000, 1);
    for (Long64_t ev = 0; ev < bigEventCount; ev++) {
@@ -243,6 +248,124 @@ TEST(RRootBulkDS, FromARDFWithJittingMT)
 
    EXPECT_DOUBLE_EQ(5., *max);
    EXPECT_DOUBLE_EQ(5., *min);
+}
+
+// Simple speed test
+TEST(RRootBulkDS, BenchmarkBulkDS)
+{
+   auto hfile = TFile::Open(fileNameBig);
+   printf("Starting read of file %s.\n", fileNameBig);
+   TStopwatch sw;
+
+   printf("Using inline bulk read APIs.\n");
+   TBufferFile branchbuf(TBuffer::kWrite, 32*1024);
+   TTree *tree = dynamic_cast<TTree*>(hfile->Get("t"));
+   ASSERT_TRUE(tree);
+
+   TBranch *branchI = tree->GetBranch("myInt");
+   ASSERT_TRUE(branchI);
+
+   Int_t events = bigEventCount;
+   Long64_t evt_idx = 0;
+   Int_t max_bulk = 0;
+   while (events) {
+      auto count = branchI->GetBulkRead().GetEntriesSerialized(evt_idx, branchbuf);
+      ASSERT_EQ(count, bigFlushSize);
+      events = events > count ? (events - count) : 0;
+
+      int *entry = reinterpret_cast<int *>(branchbuf.GetCurrent());
+      for (Int_t idx=0; idx < count; idx++) {
+         Int_t tmp = *reinterpret_cast<Int_t*>(&entry[idx]);
+         char *tmp_ptr = reinterpret_cast<char *>(&tmp);
+         int val;
+         frombuf(tmp_ptr, &val);
+
+         //EXPECT_EQ(val, evt_idx+2);
+         //evt_idx++;
+         if (val > max_bulk) {max_bulk = val;}
+      }
+      evt_idx += count;
+   }
+   sw.Stop();
+   EXPECT_EQ(max_bulk, bigEventCount+1);
+   printf("GetEntriesSerialized: Successful read of all %lld events.\n", evt_idx);
+   printf("GetEntriesSerialized: Total elapsed time (seconds) for bulk APIs: %.2f\n", sw.RealTime());
+
+   printf("Using TTreeReaderFast.\n");
+   hfile = TFile::Open(fileNameBig);
+   printf("Starting read of file %s.\n", fileNameBig);
+
+   ROOT::Experimental::TTreeReaderFast myReader(treeName, hfile);
+   ROOT::Experimental::TTreeReaderValueFast<int> myInt(myReader, "myInt");
+   myReader.SetEntry(0);
+   if (ROOT::Internal::TTreeReaderValueBase::kSetupMatch != myInt.GetSetupStatus()) {
+      printf("TTreeReaderValueFast<float> failed to initialize.  Status code: %d\n", myInt.GetSetupStatus());
+      ASSERT_TRUE(false);
+   }
+   if (myReader.GetEntryStatus() != TTreeReader::kEntryValid) {
+      printf("TTreeReaderFast failed to initialize.  Entry status: %d\n", myReader.GetEntryStatus());
+      ASSERT_TRUE(false);
+   }
+
+   max_bulk = 0;
+   sw.Reset();
+   sw.Start();
+   for (auto reader_idx : myReader) {
+      (void)reader_idx;
+      int val = *myInt;
+      if (max_bulk < val) max_bulk = val;
+   }
+   sw.Stop();
+   EXPECT_EQ(max_bulk, bigEventCount+1);
+   printf("TTreeReaderFast: Successful read of all events.\n");
+   printf("TTreeReaderFast: Total elapsed time (seconds): %.2f\n", sw.RealTime());
+
+   RDataFrame tdf(treeName, fileNameBig, {"myInt"});
+
+   printf("Using standard RDF APIs.\n");
+   sw.Reset();
+   sw.Start();
+   auto max = tdf.Max<int>("myInt");
+   //auto c = tdf.Count();
+
+   EXPECT_EQ(bigEventCount+1, *max);
+   sw.Stop();
+   printf("Standard RDF APIs: Total elapsed time (seconds): %.2f\n", sw.RealTime());
+
+   std::unique_ptr<RDataSource> rds2(new RRootBulkDS(treeName, fileNameBig));
+   RDataFrame rdf2(std::move(rds2));
+
+   printf("Using bulk RDS APIs.\n");
+   sw.Reset();
+   sw.Start();
+   auto max2 = rdf2.Max<int>("myInt");
+   //auto c = tdf.Count();
+
+   EXPECT_EQ(bigEventCount+1, *max2);
+   sw.Stop();
+   printf("Using bulk RDS APIs: Total elapsed time (seconds): %.2f\n", sw.RealTime());
+
+   printf("Using bulk data source directly.\n");
+   RRootBulkDS tds(treeName, fileNameBig);
+   tds.SetNSlots(1);
+   auto vals = tds.GetColumnReaders<int>("myInt");
+   tds.Initialise();
+   auto ranges = tds.GetEntryRanges();
+   auto slot = 0U;
+   Int_t max3 = 0;
+   sw.Reset();
+   sw.Start();
+   for (auto &&range : ranges) {
+      tds.InitSlot(slot, range.first);
+      for (int i = range.first; i < range.second; i++) {
+         tds.SetEntry(slot, i);
+         auto val = **vals[slot];
+         if (val > max3) {max3 = val;}
+      }
+   }
+   sw.Stop();
+   //EXPECT_EQ(bigEventCount+1, max3);
+   printf("Using bulk RDS directly: Total elapsed time (seconds): %.2f\n", sw.RealTime());
 }
 
 #endif // R__USE_IMT
