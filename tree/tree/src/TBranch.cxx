@@ -1351,8 +1351,7 @@ Int_t TBranch::GetBasketAndFirst(TBasket*&basket, Long64_t &first,
       // We have found the basket containing this entry.
       // make sure basket buffers are in memory.
       basket = (TBasket*) fBaskets.UncheckedAt(fReadBasket);
-      if (user_buffer) basket = nullptr;
-      if (!basket) {
+      if (!basket || user_buffer) {
          basket = GetBasketImpl(fReadBasket, user_buffer);
          if (!basket) {
             fCurrentBasket = 0;
