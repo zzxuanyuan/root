@@ -1203,6 +1203,7 @@ TBasket* TBranch::GetBasketImpl(Int_t basketnumber, TBuffer* user_buffer)
       // reference to an existing basket in memory ?
    if (basketnumber <0 || basketnumber > fWriteBasket) return 0;
    TBasket *basket = (TBasket*)fBaskets.UncheckedAt(basketnumber);
+   if (user_buffer) basket = nullptr;
    if (basket) return basket;
    if (basketnumber == fWriteBasket) return 0;
 
@@ -1320,7 +1321,7 @@ Int_t TBranch::GetBasketAndFirst(TBasket*&basket, Long64_t &first,
 {
    Long64_t updatedNext = fNextBasketEntry;
    Long64_t entry = fReadEntry;
-   if (R__likely(fCurrentBasket && fFirstBasketEntry <= entry && entry < fNextBasketEntry)) {
+   if (R__likely(fCurrentBasket && fFirstBasketEntry <= entry && entry < fNextBasketEntry && !user_buffer)) {
       // We have found the basket containing this entry.
       // make sure basket buffers are in memory.
       basket = fCurrentBasket;
@@ -1350,7 +1351,7 @@ Int_t TBranch::GetBasketAndFirst(TBasket*&basket, Long64_t &first,
       // We have found the basket containing this entry.
       // make sure basket buffers are in memory.
       basket = (TBasket*) fBaskets.UncheckedAt(fReadBasket);
-      if (!basket) {
+      if (!basket || user_buffer) {
          basket = GetBasketImpl(fReadBasket, user_buffer);
          if (!basket) {
             fCurrentBasket = 0;
