@@ -33,10 +33,10 @@ private:
    std::vector<TBufferFile*> fBufferMap;
 
    // These are all the buffers that must be advanced by 4 bytes for each event.
-   std::vector<TBufferFile> fFourByteBuffers;
+   std::vector<TBufferFile*> fFourByteBuffers;
    // A list of 4-byte values that are the targets of the void* pointer handed back to
    // the RDF.  Each event we advance, we must
-   std::vector<int32_t>     fFourByteValues;
+   std::vector<Int_t*>       fFourByteValues;
 
    // The current absolute entry in the TTree.
    ULong64_t fCurAbsEntry{0};
@@ -67,16 +67,26 @@ public:
             continue;
          }
          if (dt == kFloat_t || dt == kInt_t || dt == kUInt_t) {
-            fFourByteBuffers.emplace_back(TBuffer::kWrite, 32*1024);
-            fBufferMap.back() = &fFourByteBuffers.back();
-            fFourByteValues.push_back(0);
-            fAddressMap.back() = &fFourByteValues.back();
+            TBufferFile *bf = new TBufferFile(TBuffer::kWrite, 32*1024);
+            fFourByteBuffers.push_back(bf);
+            fBufferMap.back() = fFourByteBuffers.back();
+            Int_t *value = new Int_t[1];
+            fFourByteValues.push_back(value);
+            fAddressMap.back() = fFourByteValues.back();
          } else {
             printf("Skipping branch %s as its data type (%d) is not exactly 4 bytes.\n", br->GetName(), dt);
          }
       }
    }
 
+   ~TBulkBufferMgr() {
+      for (auto idx : ROOT::TSeqU(fBufferMap.size())) {
+         if (fBufferMap[idx]) delete fBufferMap[idx];
+      }
+      for (auto idx : ROOT::TSeqU(fAddressMap.size())) {
+         if (fAddressMap[idx]) delete fAddressMap[idx];
+      }
+   }
 
    void *getColumnTargetPtr(size_t idx) {
       return &fAddressMap[idx];
@@ -88,16 +98,15 @@ public:
           return false;
       }
       for (auto idx : ROOT::TSeqU(fFourByteBuffers.size())) {
-         int32_t *raw_buffer = reinterpret_cast<int32_t*>(fFourByteBuffers[idx].GetCurrent());
-         int32_t tmp = *reinterpret_cast<int32_t*>(&raw_buffer[fCurRelEntry]);
+         Int_t *raw_buffer = reinterpret_cast<Int_t*>(fBufferMap[idx]->GetCurrent());
+         Int_t tmp = *reinterpret_cast<Int_t*>(&raw_buffer[fCurRelEntry]);
          char *tmp_ptr = reinterpret_cast<char *>(&tmp);
-         frombuf(tmp_ptr, &fFourByteValues[idx]);
+         frombuf(tmp_ptr, fFourByteValues[idx]);
       }
       fCurRelEntry++;
       fCurAbsEntry++;
       return true;
    }
-
 
    // Initialize a cluster range for processing.
    // Returns true if successful
@@ -267,12 +276,10 @@ void RRootBulkDS::SetNSlots(unsigned int nSlots)
    }
 }
 
-
 std::string RRootBulkDS::GetDataSourceType()
 {
    return "RootBulk";
 }
-
 
 RDataFrame MakeRootBulkDataFrame(std::string_view treeName, std::string_view fileNameGlob)
 {
