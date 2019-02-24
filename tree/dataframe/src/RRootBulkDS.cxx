@@ -26,27 +26,29 @@ namespace RDF {
 class TBulkBufferMgr
 {
 private:
-   // This is the mapping from col # to void* address.
-   std::vector<void*> fAddressMap;
+   // This is the mapping from col to void* address.
+   std::vector<void*> fBranchAddresses;
 
-   // This is the mapping from col # to buffer.
-   std::vector<TBufferFile*> fBufferMap;
-
-   // This is the mapping from col # to data type.
-   std::vector<EDataType> fDataTypeMap;
+   // This is the mapping from col to buffer.
+   std::unordered_map<TBranch*, std::unique_ptr<TBufferFile>> fBufferMap;
 
    // These are all the buffers that must be advanced by n bytes for each event.
    // 1 byte for bool/char, 2 bytes for short, 4 bytes for int/float and 8 bytes for double/long64
-   std::vector<TBufferFile*> fOneByteBuffers;
-   std::vector<TBufferFile*> fTwoByteBuffers;
-   std::vector<TBufferFile*> fFourByteBuffers;
-   std::vector<TBufferFile*> fEightByteBuffers;
-   // A list of n-byte values that are the targets of the void* pointer handed back to
-   // the RDF.  Each event advances n bytes as the above buffers.
-   std::vector<Char_t*>      fOneByteValues;
-   std::vector<Short_t*>     fTwoByteValues;
-   std::vector<Int_t*>       fFourByteValues;
-   std::vector<Long64_t*>    fEightByteValues;
+   std::vector<TBufferFile*> fNByteBuffers;
+   std::vector<TBufferFile*> fFixArrayBuffers;
+   std::vector<TBufferFile*> fVarArrayBuffers;
+
+   // This is the mapping from array branch to 
+   // 1. size of the array if the branch is fixed size array
+   // 2. 1 if the branch is variable size array
+   std::unordered_map<TBufferFile*, int> fFixArrayLenMap;
+   std::unordered_map<TBufferFile*, std::pair<void*, int>> fVarArrayLenMap;
+   // The mapping from buffer to type len
+   std::unordered_map<TBufferFile*, int> fTypeLenMap;
+   // This is the mapping from array branch to entry offset
+   std::unordered_map<TBufferFile*, ULong64_t> fEntryMap;
+   // This is the mapping from buffer to leaf values
+   std::unordered_map<TBufferFile*, std::unique_ptr<char>> fValueMap;
 
    // The current absolute entry in the TTree.
    ULong64_t fCurAbsEntry{0};
@@ -62,9 +64,10 @@ public:
    {
       const TObjArray *branchList = curTree->GetListOfBranches();
       Int_t branchCount = branchList->GetEntriesFast();
+      // collect variable size array branches and process later
+      std::vector<TBranch*> bv;
       for (auto idx : ROOT::TSeqU(branchCount)) {
-         fAddressMap.push_back(nullptr);
-         fBufferMap.push_back(nullptr);
+         fBranchAddresses.push_back(nullptr);
          auto br = dynamic_cast<TBranch*>((*branchList)[idx]);
          if (!br || !br->SupportsBulkRead()) {
             printf("Skipping branch %s as it does not support bulk reads.\n", br->GetName());
@@ -76,107 +79,192 @@ public:
             printf("Skipping branch %s as we failed to retrieve the expected type info.\n", br->GetName());
             continue;
          }
-         fDataTypeMap.push_back(dt);
-         if (dt == kChar_t || dt == kUChar_t || dt == kBool_t) {
-            TBufferFile *bf = new TBufferFile(TBuffer::kWrite, 32*1024);
-            fOneByteBuffers.push_back(bf);
-            fBufferMap.back() = fOneByteBuffers.back();
-            Char_t *value = new Char_t[1];
-            fOneByteValues.push_back(value);
-            fAddressMap.back() = fOneByteValues.back();
-         } else if (dt == kShort_t || dt == kUShort_t) {
-            TBufferFile *bf = new TBufferFile(TBuffer::kWrite, 32*1024);
-            fTwoByteBuffers.push_back(bf);
-            fBufferMap.back() = fTwoByteBuffers.back();
-            Short_t *value = new Short_t[1];
-            fTwoByteValues.push_back(value);
-            fAddressMap.back() = fTwoByteValues.back();
-         } else if (dt == kFloat_t || dt == kInt_t || dt == kUInt_t) {
-            TBufferFile *bf = new TBufferFile(TBuffer::kWrite, 32*1024);
-            fFourByteBuffers.push_back(bf);
-            fBufferMap.back() = fFourByteBuffers.back();
-            Int_t *value = new Int_t[1];
-            fFourByteValues.push_back(value);
-            fAddressMap.back() = fFourByteValues.back();
-         } else if (dt == kDouble_t || dt == kLong64_t || dt == kULong64_t) {
-            TBufferFile *bf = new TBufferFile(TBuffer::kWrite, 32*1024);
-            fEightByteBuffers.push_back(bf);
-            fBufferMap.back() = fEightByteBuffers.back();
-            Long64_t *value = new Long64_t[1];
-            fEightByteValues.push_back(value);
-            fAddressMap.back() = fEightByteValues.back();
+
+         // get branch leaf
+         auto leaf = (TLeaf*)br->GetListOfLeaves()->At(0);
+         // initialize branch buffer map
+         fBufferMap[br].reset(new TBufferFile(TBuffer::kWrite, 32*1024));
+         TBufferFile *bf = fBufferMap[br].get();
+         // initialize branch type size map
+         int leafLenType = leaf->GetLenType();
+         fTypeLenMap[bf] = leafLenType;
+         // initialize branch entry map
+         fEntryMap[bf] = 0;
+
+         // initialize value map, array information
+         auto leafLenStatic = leaf->GetLenStatic();
+         auto leafCount = leaf->GetLeafCount();
+         if (leafLenStatic > 1) {
+            fFixArrayLenMap[bf] = leafLenStatic;
+            fFixArrayBuffers.push_back(bf);
+            fValueMap[bf].reset(new char[1024]);
+         } else if (leafCount) {
+            fVarArrayBuffers.push_back(bf);
+            fValueMap[bf].reset(new char[1024]);
          } else {
-            printf("Skipping branch %s as its data type (%d) is not supported.\n", br->GetName(), dt);
+            fTypeLenMap[bf] = leafLenType;
+            fNByteBuffers.push_back(bf);
+            fValueMap[bf].reset(new char[leafLenType]);
          }
+         fBranchAddresses.back() = fValueMap[bf].get();
+      }
+      // now let us process variable size arrays since their information depend on count leafs
+      for (UInt_t i = 0; i < bv.size(); ++i) {
+         // find count leaf branch
+         TBranch *countBranch = ((TLeaf*)bv[i]->GetListOfLeaves()->At(0))->GetLeafCount()->GetBranch();
+         TBufferFile *countBuffer = fBufferMap[countBranch].get();
+         // store count leaf information to this branch mapping
+         TBufferFile *branchBuffer = fBufferMap[bv[i]].get();
+         fVarArrayLenMap[branchBuffer] = std::make_pair(fValueMap[countBuffer].get(), fTypeLenMap[countBuffer]);
       }
    }
 
    ~TBulkBufferMgr() {
-      for (auto idx : ROOT::TSeqU(fBufferMap.size())) {
-         if (fBufferMap[idx]) delete fBufferMap[idx];
-      }
-      for (auto idx : ROOT::TSeqU(fAddressMap.size())) {
-         if (fAddressMap[idx]) {
-            if (fDataTypeMap[idx] == kChar_t || fDataTypeMap[idx] == kUChar_t || fDataTypeMap[idx] == kBool_t) {
-               delete static_cast<Char_t*>(fAddressMap[idx]);
-            } else if (fDataTypeMap[idx] == kShort_t || fDataTypeMap[idx] == kUShort_t) {
-               delete static_cast<Short_t*>(fAddressMap[idx]);
-            } else if (fDataTypeMap[idx] == kFloat_t || fDataTypeMap[idx] == kInt_t || fDataTypeMap[idx] == kUInt_t) {
-               delete static_cast<Int_t*>(fAddressMap[idx]);
-            } else if (fDataTypeMap[idx] == kDouble_t || fDataTypeMap[idx] == kLong64_t || fDataTypeMap[idx] == kULong64_t) {
-               delete static_cast<Long64_t*>(fAddressMap[idx]);
-            } else {
-               printf("Unknown type\n");
-            }
-         }
-      }
    }
 
    void *getColumnTargetPtr(size_t idx) {
-      return &fAddressMap[idx];
+      return &fBranchAddresses[idx];
    }
 
-   bool SetEntry(ULong64_t entry) {
+   bool SetEntry(ULong64_t entry)
+   {
       // TODO: handle random skips.
       if (R__unlikely(fCurAbsEntry != entry)) {
           return false;
       }
-      auto idx1b = 0;
-      auto idx2b = 0;
-      auto idx4b = 0;
-      auto idx8b = 0;
-      for (UInt_t idx = 0; idx < fBufferMap.size(); ++idx) {
-         EDataType dt = fDataTypeMap[idx];
-         if (dt == kChar_t || dt == kUChar_t || dt == kBool_t) {
-            Char_t *raw_buffer = reinterpret_cast<Char_t*>(fBufferMap[idx]->GetCurrent());
-            Char_t tmp = *reinterpret_cast<Char_t*>(&raw_buffer[fCurRelEntry]);
+
+      for (UInt_t idx = 0; idx < fNByteBuffers.size(); ++idx) {
+         TBufferFile *bf = fNByteBuffers[idx];
+         Long64_t offset = fEntryMap[bf];
+         char *raw_buffer = bf->GetCurrent();
+         if (fTypeLenMap[bf] == 1) {
+            Char_t tmp = *reinterpret_cast<Char_t*>(&raw_buffer[offset]);
             char *tmp_ptr = reinterpret_cast<char *>(&tmp);
-            frombuf(tmp_ptr, fOneByteValues[idx1b]);
-            idx1b++;
-         } else if (dt == kShort_t || dt == kUShort_t) {
-            Short_t *raw_buffer = reinterpret_cast<Short_t*>(fBufferMap[idx]->GetCurrent());
-            Short_t tmp = *reinterpret_cast<Short_t*>(&raw_buffer[fCurRelEntry]);
+            frombuf(tmp_ptr, (Char_t *)fValueMap[bf].get());
+            offset += 1;
+         } else if (fTypeLenMap[bf] == 2) {
+            Short_t tmp = *reinterpret_cast<Short_t*>(&raw_buffer[offset]);
             char *tmp_ptr = reinterpret_cast<char *>(&tmp);
-            frombuf(tmp_ptr, fTwoByteValues[idx2b]);
-            idx2b++;
-         } else if (dt == kFloat_t || dt == kInt_t || dt == kUInt_t) {
-            Int_t *raw_buffer = reinterpret_cast<Int_t*>(fBufferMap[idx]->GetCurrent());
-            Int_t tmp = *reinterpret_cast<Int_t*>(&raw_buffer[fCurRelEntry]);
+            frombuf(tmp_ptr, (Short_t *)fValueMap[bf].get());
+            offset += 2;
+         } else if (fTypeLenMap[bf] == 4) {
+            Int_t tmp = *reinterpret_cast<Int_t*>(&raw_buffer[offset]);
             char *tmp_ptr = reinterpret_cast<char *>(&tmp);
-            frombuf(tmp_ptr, fFourByteValues[idx4b]);
-            idx4b++;
-         } else if (dt == kDouble_t || dt == kLong64_t || dt == kULong64_t) {
-            Long64_t *raw_buffer = reinterpret_cast<Long64_t*>(fBufferMap[idx]->GetCurrent());
-            Long64_t tmp = *reinterpret_cast<Long64_t*>(&raw_buffer[fCurRelEntry]);
+            frombuf(tmp_ptr, (Int_t *)fValueMap[bf].get());
+            offset += 4;
+         } else if (fTypeLenMap[bf] == 8) {
+            Long64_t tmp = *reinterpret_cast<Long64_t*>(&raw_buffer[offset]);
             char *tmp_ptr = reinterpret_cast<char *>(&tmp);
-            frombuf(tmp_ptr, fEightByteValues[idx8b]);
-            idx8b++;
+            frombuf(tmp_ptr, (Long64_t *)fValueMap[bf].get());
+            offset += 8;
          } else {
-            printf("Unknown data type %d.\n", dt);
+            return false;
+         }
+         fEntryMap[bf] = offset;
+      }
+      for (UInt_t idx = 0; idx < fFixArrayBuffers.size(); ++idx) {
+         printf("entry fix array\n");//##
+         TBufferFile *bf = fFixArrayBuffers[idx];
+         Long64_t offset = fEntryMap[bf];
+         char *raw_buffer = bf->GetCurrent();
+         Long64_t arrayLen = fFixArrayLenMap[bf];
+         if (fTypeLenMap[bf] == 1) {
+            Char_t tmp = *reinterpret_cast<Char_t*>(&raw_buffer[offset]);
+            char *tmp_ptr = reinterpret_cast<char *>(&tmp);
+            Char_t *value = (Char_t *)fValueMap[bf].get();
+            for (int i = 0; i < arrayLen; ++i) {
+               frombuf(tmp_ptr, &value[i]);
+            }
+            offset += arrayLen * 1;
+         } else if (fTypeLenMap[bf] == 2) {
+            Short_t tmp = *reinterpret_cast<Short_t*>(&raw_buffer[offset]);
+            char *tmp_ptr = reinterpret_cast<char *>(&tmp);
+            Short_t *value = (Short_t *)fValueMap[bf].get();
+            for (int i = 0; i < arrayLen; ++i) {
+               frombuf(tmp_ptr, &value[i]);
+            }
+            offset += arrayLen * 2;
+         } else if (fTypeLenMap[bf] == 4) {
+            Int_t tmp = *reinterpret_cast<Int_t*>(&raw_buffer[offset]);
+            char *tmp_ptr = reinterpret_cast<char *>(&tmp);
+            Int_t *value = (Int_t *)fValueMap[bf].get();
+            for (int i = 0; i < arrayLen; ++i) {
+               frombuf(tmp_ptr, &value[i]);
+            }
+            offset += arrayLen * 4;
+         } else if (fTypeLenMap[bf] == 8) {
+            Long64_t tmp = *reinterpret_cast<Long64_t*>(&raw_buffer[offset]);
+            char *tmp_ptr = reinterpret_cast<char *>(&tmp);
+            Long64_t *value = (Long64_t *)fValueMap[bf].get();
+            for (int i = 0; i < arrayLen; ++i) {
+               frombuf(tmp_ptr, &value[i]);
+            }
+            offset += arrayLen * 8;
+         } else {
+            return false;
          }
       }
-      fCurRelEntry++;
+      for (UInt_t idx = 0; idx < fVarArrayBuffers.size(); ++idx) {
+         printf("entry var array\n");//##
+         TBufferFile *bf = fVarArrayBuffers[idx];
+         Long64_t offset = fEntryMap[bf];
+         char *raw_buffer = bf->GetCurrent();
+         std::pair<void*, int> p = fVarArrayLenMap[bf];
+         Long64_t arrayLen = -1;
+         if (p.second == 1) {
+            Char_t len = *((Char_t *)p.first);
+            arrayLen = len;
+         } else if (p.second == 2) {
+            Short_t len = *((Short_t *)p.first);
+            arrayLen = len;
+         } else if (p.second == 4) {
+            Int_t len = *((Int_t *)p.first);
+            arrayLen = len;
+         } else if (p.second == 8) {
+            Long64_t len = *((Long64_t *)p.first);
+            arrayLen = len;
+         } else {
+            return false;
+         }
+         if (arrayLen < 0) { return false; }
+         if (fTypeLenMap[bf] == 1) {
+            Char_t tmp = *reinterpret_cast<Char_t*>(&raw_buffer[offset]);
+            char *tmp_ptr = reinterpret_cast<char *>(&tmp);
+            Char_t *value = (Char_t *)fValueMap[bf].get();
+            for (int i = 0; i < arrayLen; ++i) {
+               frombuf(tmp_ptr, &value[i]);
+            }
+            offset += arrayLen * 1;
+         } else if (fTypeLenMap[bf] == 2) {
+            Short_t tmp = *reinterpret_cast<Short_t*>(&raw_buffer[offset]);
+            char *tmp_ptr = reinterpret_cast<char *>(&tmp);
+            Short_t *value = (Short_t *)fValueMap[bf].get();
+            for (int i = 0; i < arrayLen; ++i) {
+               frombuf(tmp_ptr, &value[i]);
+            }
+            offset += arrayLen * 2;
+         } else if (fTypeLenMap[bf] == 4) {
+            Int_t tmp = *reinterpret_cast<Int_t*>(&raw_buffer[offset]);
+            char *tmp_ptr = reinterpret_cast<char *>(&tmp);
+            Int_t *value = (Int_t *)fValueMap[bf].get();
+            for (int i = 0; i < arrayLen; ++i) {
+               frombuf(tmp_ptr, &value[i]);
+            }
+            offset += arrayLen * 4;
+         } else if (fTypeLenMap[bf] == 8) {
+            Long64_t tmp = *reinterpret_cast<Long64_t*>(&raw_buffer[offset]);
+            char *tmp_ptr = reinterpret_cast<char *>(&tmp);
+            Long64_t *value = (Long64_t *)fValueMap[bf].get();
+            for (int i = 0; i < arrayLen; ++i) {
+               frombuf(tmp_ptr, &value[i]);
+            }
+            offset += arrayLen * 8;
+         } else {
+            return false;
+         }
+      }
       fCurAbsEntry++;
+      fCurRelEntry++;
       return true;
    }
 
@@ -189,10 +277,20 @@ public:
       Int_t branchCount = branchList->GetEntriesFast();
       Int_t count = -1;
       for (auto idx : ROOT::TSeqU(branchCount)) {
-         if (fBufferMap[idx] == nullptr) continue;
-
          auto br = static_cast<TBranch*>((*branchList)[idx]);
-         auto result = br->GetBulkRead().GetEntriesSerialized(firstEntry, *fBufferMap[idx]);
+         TBufferFile *bf = fBufferMap[br].get();
+         auto leaf = static_cast<TLeaf*>(br->GetListOfLeaves()->At(0));
+         auto leafCount = leaf->GetLeafCount();
+         fEntryMap[bf] = 0;
+         auto result = -1;
+         if(leafCount) {
+            // search for leaf count TBufferFile
+            auto countBranch = leafCount->GetBranch();
+            TBufferFile *countBuffer = fBufferMap[countBranch].get();
+            result = br->GetBulkRead().GetEntriesSerialized(firstEntry, *bf, countBuffer);
+         } else {
+            result = br->GetBulkRead().GetEntriesSerialized(firstEntry, *bf);
+         }
          // TODO: this fails if all the baskets in the cluster do not have the same size.
          if (result < 0) return false;
          else if ((count >= 0) && (result != count)) return false;

@@ -336,6 +336,7 @@ TEST(RRootBulkDS, ColumnReaders)
 {
    RRootBulkDS tds(treeName, fileGlob);
    tds.SetNSlots(1);
+   
    auto valsI  = tds.GetColumnReaders<int>("i");
    auto valsUI = tds.GetColumnReaders<unsigned int>("ui");
    auto valsS  = tds.GetColumnReaders<short>("s");
