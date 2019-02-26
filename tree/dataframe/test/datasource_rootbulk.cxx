@@ -1,5 +1,6 @@
 #include <TBufferFile.h>
 #include <ROOT/RDataFrame.hxx>
+#include <ROOT/RRootDS.hxx>//##
 #include <ROOT/RRootBulkDS.hxx>
 #include <ROOT/TTreeReaderFast.hxx>
 #include <ROOT/TTreeReaderValueFast.hxx>
@@ -18,12 +19,15 @@ using namespace ROOT::RDF::Experimental;
 auto fileName0 = "RRootBulkDS_input_0.root";
 auto fileGlob = "RRootBulkDS_input_*.root";
 auto fileNameBig = "RRootBulkDS_input_big.root";
+auto fileNameArray = "RRootBulkDS_input_array.root";
 auto treeName = "t";
 
 auto eventCount = 10;
-auto bigEventCount = 100e6;
+auto bigEventCount = 100e4;
 auto bigFlushSize = 50e3;
 const auto kSlots = 4U;
+
+auto fixArrayLen = 4;
 
 TEST(RRootBulkDS, GenerateData)
 {
@@ -98,6 +102,39 @@ TEST(RRootBulkDS, GenerateData)
    hfile = tree->GetCurrentFile();
    hfile->Write();
    tree->Print();
+   delete tree;
+   //printf("Successful write of all events.\n");
+   hfile->Close();
+   delete hfile;
+
+   // Manually create a larger file, allowing us to closely control its formatting.
+   hfile = new TFile(fileNameArray, "RECREATE", "TTree array benchmark ROOT file");
+   hfile->SetCompressionLevel(0); // No compression at all.
+
+   // Otherwise, we keep with the current ROOT defaults.
+   tree = new TTree("t", "A ROOT tree of arrays.");
+   tree->SetAutoFlush(bigFlushSize);
+   tree->SetBit(TTree::kOnlyFlushAtCluster);
+   Int_t len = 0;
+   Float_t farray[fixArrayLen];
+   Float_t varray[10];
+   tree->Branch("len", &len, 320000, 1);
+   tree->Branch("varray", &varray, "varray[len]/F", 32000);
+   tree->Branch("farray", &farray, "farray[4]/F", 32000);
+   for (Long64_t ev = 0; ev < eventCount; ev++) {
+      len = ev % 10;
+      for (Int_t idx = 0; idx < len; ++idx) {
+         varray[idx] = idx * 1.0;
+      }
+      for (Int_t idx = 0; idx < fixArrayLen; ++idx) {
+         farray[idx] = idx * 1.0;
+      }
+      tree->Fill();
+   }
+   hfile = tree->GetCurrentFile();
+   hfile->Write();
+   tree->Print();
+   delete tree;
    //printf("Successful write of all events.\n");
    hfile->Close();
    delete hfile;
@@ -769,6 +806,113 @@ TEST(RRootBulkDS, Primitives)
          expectedC++;
          expectedB = !expectedB;
          evt_idx++;
+      }
+   }
+}
+
+// Test arrays.
+TEST(RRootBulkDS, Arrays)
+{
+   auto hfile = TFile::Open(fileNameArray);
+   TBufferFile branchbufLen(TBuffer::kWrite, 32*1024);
+   TBufferFile branchbufCount(TBuffer::kWrite, 32*1024);
+   TBufferFile branchbufVarSizeArray(TBuffer::kWrite, 32*1024);
+   TBufferFile branchbufFixSizeArray(TBuffer::kWrite, 32*1024);
+   TTree *tree = dynamic_cast<TTree*>(hfile->Get("t"));
+   ASSERT_TRUE(tree);
+
+   TBranch *branchLen = tree->GetBranch("len");
+   ASSERT_TRUE(branchLen);
+   TBranch *branchVarSizeArray = tree->GetBranch("varray");
+   ASSERT_TRUE(branchVarSizeArray);
+   TBranch *branchFixSizeArray = tree->GetBranch("farray");
+   ASSERT_TRUE(branchFixSizeArray);
+
+   Int_t events = eventCount;
+   Long64_t evt_idx = 0;
+   while (events > 0) {
+      auto countLen = branchLen->GetBulkRead().GetEntriesSerialized(evt_idx, branchbufLen);
+      auto countVarSizeArray = branchVarSizeArray->GetBulkRead().GetEntriesSerialized(evt_idx, branchbufVarSizeArray, &branchbufCount);
+      auto countFixSizeArray = branchFixSizeArray->GetBulkRead().GetEntriesSerialized(evt_idx, branchbufFixSizeArray);
+      ASSERT_EQ(countLen, countVarSizeArray);
+      ASSERT_EQ(countLen, countFixSizeArray);
+      events = events > countLen ? (events - countLen) : 0;
+      int *entryLen = reinterpret_cast<int *>(branchbufLen.GetCurrent());
+      int *entryCount = reinterpret_cast<int *>(branchbufCount.GetCurrent());
+      char *entryVarSizeArray = branchbufVarSizeArray.GetCurrent();
+      char *entryFixSizeArray = branchbufFixSizeArray.GetCurrent();
+      for (Int_t idx=0; idx < countLen; idx++) {
+         Int_t len = *reinterpret_cast<Int_t*>(&entryLen[idx]);
+         Int_t count = *reinterpret_cast<Int_t*>(&entryCount[idx]);
+         char *len_ptr = reinterpret_cast<char *>(&len);
+         char *count_ptr = reinterpret_cast<char *>(&count);
+         int valLen;
+         int valCount;
+         frombuf(len_ptr, &valLen);
+         frombuf(count_ptr, &valCount);
+         ASSERT_EQ(valLen, valCount);
+         for (Int_t i = 0; i < valLen; ++i) {
+            float valVarSizeArray;
+            frombuf(entryVarSizeArray, &valVarSizeArray);
+            ASSERT_TRUE(abs(valVarSizeArray - (i*1.0)) < std::numeric_limits<float>::epsilon());
+         }
+         for (Int_t i = 0; i < fixArrayLen; ++i) {
+            float valFixSizeArray;
+            frombuf(entryFixSizeArray, &valFixSizeArray);
+            ASSERT_TRUE(abs(valFixSizeArray - (i*1.0)) < std::numeric_limits<float>::epsilon());
+         }
+      }
+   }
+}
+
+// Test arrays with normal rds.
+TEST(RRootBulkDS, ArraysDS)
+{
+   std::unique_ptr<RDataSource> rds(new RRootDS(treeName, fileNameArray));
+   RDataFrame rdf(std::move(rds));
+
+   auto fixSizeArray = rdf.Take<ROOT::VecOps::RVec<float>>("farray");
+   auto nArrays = fixSizeArray->size();
+   auto fixArraySize = fixSizeArray->front().size();
+   for (UInt_t i = 0; i < nArrays; ++i) {
+      for (UInt_t j = 0; j < fixArraySize; ++j) {
+         ASSERT_EQ(j*1.0, fixSizeArray->at(i).at(j));
+      }
+   }
+}
+
+// Test arrays with bulk api.
+TEST(RRootBulkDS, ArraysBulkDS)
+{
+   std::unique_ptr<RDataSource> rds(new RRootBulkDS(treeName, fileNameArray));
+   RDataFrame rdf(std::move(rds));
+
+   auto max = rdf.Max<int>("len");
+   //auto c = tdf.Count();
+
+   EXPECT_EQ(9, *max);
+
+   RRootBulkDS tds(treeName, fileNameArray);
+   tds.SetNSlots(1);
+   auto valLens = tds.GetColumnReaders<Int_t>("len");
+   auto valVarSizeArrays = tds.GetColumnReaders<ROOT::VecOps::RVec<Float_t>>("varray");
+   auto valFixSizeArrays = tds.GetColumnReaders<ROOT::VecOps::RVec<Float_t>>("farray");
+   tds.Initialise();
+   auto ranges = tds.GetEntryRanges();
+   auto slot = 0U;
+   for (auto &&range : ranges) {
+      tds.InitSlot(slot, range.first);
+      for (auto i = range.first; i < range.second; i++) {
+         tds.SetEntry(slot, i);
+         auto len = **valLens[slot];
+         auto varray = **valVarSizeArrays[slot];
+         auto farray = **valFixSizeArrays[slot];
+         for (auto idx = 0; idx < len; ++idx) {
+            ASSERT_EQ(varray[idx], idx*1.0);
+         }
+         for (auto idx = 0; idx < fixArrayLen; ++idx) {
+            ASSERT_EQ(farray[idx], idx*1.0);
+         }
       }
    }
 }
